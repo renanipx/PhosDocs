@@ -1,0 +1,26 @@
+{
+  "short_name": "PhosDocs",
+  "name": "PhosDocs - Documentação Técnica Inteligente",
+  "icons": [
+    {
+      "src": "phosdocs_img.png",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "phosdocs_logo.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "phosdocs_logo.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#667eea",
+  "background_color": "#667eea",
+  "description": "Crie documentação técnica inteligente com IA"
+} 
