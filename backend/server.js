@@ -2,7 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+// Load environment variables
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const documentationRoutes = require('./routes/documentation');
 const imageRoutes = require('./routes/images');
@@ -16,7 +18,7 @@ app.use(helmet());
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-frontend-domain.com'] 
+    ? [''] 
     : ['http://localhost:3000'],
   credentials: true
 }));

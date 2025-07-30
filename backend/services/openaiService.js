@@ -1,12 +1,21 @@
 const OpenAI = require('openai');
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+if (!process.env.OPENROUTER_API_KEY) {
+  throw new Error('OPENROUTER_API_KEY environment variable is required. Please configure it in your .env file.');
+}
+
+// Initialize OpenRouter client
+const openRouter = new OpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: 'https://openrouter.ai/api/v1',
+  defaultHeaders: {
+    'HTTP-Referer': process.env.OPENROUTER_REFERER || 'https://phosdocs.com',
+    'X-Title': 'PhosDocs - Documentation Generator'
+  }
 });
 
 /**
- * Generate documentation using OpenAI
+ * Generate documentation using OpenRouter
  * @param {Object} data - The documentation data
  * @param {string} data.title - The title of the documentation
  * @param {string} data.description - The technical description to rewrite
@@ -33,9 +42,9 @@ async function generateDocumentation(data) {
 
     prompt += 'Por favor, reescreva a documentação seguindo as diretrizes especificadas.';
 
-    // Call OpenAI API
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+    // Call OpenRouter API
+    const completion = await openRouter.chat.completions.create({
+      model: process.env.OPENROUTER_MODEL || 'openai/gpt-3.5-turbo',
       messages: [
         {
           role: 'system',
@@ -66,30 +75,34 @@ async function generateDocumentation(data) {
     return documentation;
 
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('OpenRouter API error:', error);
     
-    // Handle specific OpenAI errors
-    if (error.code === 'insufficient_quota') {
-      throw new Error('OpenAI API quota exceeded. Please check your account.');
-    } else if (error.code === 'invalid_api_key') {
-      throw new Error('Invalid OpenAI API key. Please check your configuration.');
-    } else if (error.code === 'rate_limit_exceeded') {
-      throw new Error('OpenAI API rate limit exceeded. Please try again later.');
+    // Handle specific OpenRouter errors
+    if (error.code === 'insufficient_quota' || error.status === 429) {
+      throw new Error('API quota exceeded. Please check your OpenRouter account.');
+    } else if (error.code === 'invalid_api_key' || error.status === 401) {
+      throw new Error('Invalid API key. Please check your OpenRouter configuration.');
+    } else if (error.code === 'rate_limit_exceeded' || error.status === 429) {
+      throw new Error('API rate limit exceeded. Please try again later.');
+    } else if (error.status === 400) {
+      throw new Error('Invalid request. Please check your input parameters.');
+    } else if (error.status === 500) {
+      throw new Error('OpenRouter service error. Please try again later.');
     } else {
-      throw new Error(`OpenAI API error: ${error.message}`);
+      throw new Error(`OpenRouter API error: ${error.message}`);
     }
   }
 }
 
 /**
- * Generate image captions using OpenAI
+ * Generate image captions using OpenRouter
  * @param {string} imageDescription - Description of the image
  * @returns {Promise<string>} Generated caption
  */
 async function generateImageCaption(imageDescription) {
   try {
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+    const completion = await openRouter.chat.completions.create({
+      model: process.env.OPENROUTER_MODEL || 'openai/gpt-3.5-turbo',
       messages: [
         {
           role: 'system',
@@ -108,6 +121,7 @@ async function generateImageCaption(imageDescription) {
 
   } catch (error) {
     console.error('Image caption generation error:', error);
+    // Return a fallback caption if API fails
     return `Imagem técnica - ${imageDescription}`;
   }
 }
