@@ -46,7 +46,7 @@ router.post('/generate', async (req, res) => {
       images: processedImages
     });
 
-    res.json({
+    const response = {
       success: true,
       documentation,
       metadata: {
@@ -54,7 +54,9 @@ router.post('/generate', async (req, res) => {
         generatedAt: new Date().toISOString(),
         imageCount: processedImages.length
       }
-    });
+    };
+
+    res.json(response);
 
   } catch (error) {
     console.error('Documentation generation error:', error);

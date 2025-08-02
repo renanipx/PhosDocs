@@ -12,6 +12,10 @@ const imageRoutes = require('./routes/images');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Increase timeout for AI operations
+const server = require('http').createServer(app);
+server.timeout = 300000; // 5 minutes timeout
+
 // Security middleware
 app.use(helmet());
 
@@ -65,8 +69,9 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 PhosDocs Backend running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`⏱️  Server timeout: 5 minutes`);
 }); 

@@ -291,35 +291,89 @@ code {
 
 /* Generated documentation */
 .doc-container {
-  margin-top: 30px;
+  max-width: 100%;
 }
 
 .doc-title {
   font-size: 24px;
   font-weight: 700;
   color: #333;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
   text-align: center;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 15px;
 }
 
 .doc-section {
-  margin-bottom: 24px;
+  margin-bottom: 30px;
 }
 
 .doc-section-title {
+  font-size: 18px;
   font-weight: 600;
   color: #333;
-  margin-bottom: 8px;
+  margin-bottom: 15px;
+  padding: 10px 0;
+  border-left: 4px solid #667eea;
+}
+
+/* Diferentes níveis de título */
+.doc-title-level-1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  border-left: 4px solid #667eea;
+}
+
+.doc-title-level-2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #444;
+  border-left: 3px solid #764ba2;
+}
+
+.doc-title-level-3 {
   font-size: 16px;
+  font-weight: 600;
+  color: #555;
+  border-left: 2px solid #667eea;
+}
+
+.doc-title-level-4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #666;
+  border-left: 2px solid #764ba2;
 }
 
 .doc-content {
+  font-size: 14px;
   line-height: 1.6;
   color: #555;
-  background: #f8f9fa;
-  padding: 16px;
-  border-radius: 8px;
-  border-left: 4px solid #667eea;
+  margin-left: 15px;
+}
+
+.doc-content div {
+  margin-bottom: 8px;
+}
+
+.doc-list-item {
+  margin-left: 20px;
+  margin-bottom: 5px;
+  position: relative;
+}
+
+.doc-list-item:before {
+  content: '•';
+  color: #667eea;
+  font-weight: bold;
+  position: absolute;
+  left: -15px;
+}
+
+.doc-content strong {
+  color: #333;
+  font-weight: 600;
 }
 
 .doc-images {

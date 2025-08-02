@@ -26,38 +26,45 @@ async function generateDocumentation(data) {
   try {
     const { title, description, images } = data;
 
-    // Build the prompt with the specified format from .env
-    let prompt = process.env.DOCUMENTATION_PROMPT + '\n\n';
-    prompt += `Título: ${title}\n\n`;
-    prompt += `Descrição técnica:\n${description}\n\n`;
-
-    // Add image information if available
-    if (images && images.length > 0) {
-      prompt += 'Imagens incluídas:\n';
-      images.forEach((image, index) => {
-        prompt += `- Imagem ${index + 1}: ${image.caption || 'Sem legenda'}\n`;
-      });
-      prompt += '\n';
+    const systemPrompt = process.env.DOCUMENTATION_SYSTEM_PROMPT;
+    
+    if (!systemPrompt) {
+      throw new Error('DOCUMENTATION_SYSTEM_PROMPT não está configurado no arquivo .env');
     }
 
-    prompt += 'Por favor, reescreva a documentação seguindo as diretrizes especificadas.';
+    const userPrompt = `TÍTULO ORIGINAL: ${title}
 
-    // Call OpenRouter API
-    const completion = await openRouter.chat.completions.create({
+DESCRIÇÃO TÉCNICA:
+${description}
+
+${images && images.length > 0 ? `IMAGENS INCLUÍDAS:
+${images.map((img, index) => `- Imagem ${index + 1}: ${img.caption || 'Sem legenda'}`).join('\n')}
+` : ''}
+
+Por favor, crie uma documentação técnica estruturada e profissional baseada nas informações acima.`;
+
+    // Call OpenRouter API with timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('API timeout after 60 seconds')), 60000);
+    });
+
+    const apiPromise = openRouter.chat.completions.create({
       model: process.env.OPENROUTER_MODEL || 'openai/gpt-3.5-turbo',
       messages: [
         {
           role: 'system',
-          content: 'Você é um assistente especializado em reescrever documentação técnica para torná-la mais acessível e compreensível.'
+          content: systemPrompt
         },
         {
           role: 'user',
-          content: prompt
+          content: userPrompt
         }
       ],
-      max_tokens: 2000,
-      temperature: 0.7,
+      max_tokens: parseInt(process.env.OPENROUTER_MAX_TOKENS),
+      temperature: parseFloat(process.env.OPENROUTER_TEMPERATURE),
     });
+
+    const completion = await Promise.race([apiPromise, timeoutPromise]);
 
     const generatedText = completion.choices[0].message.content;
 
@@ -76,7 +83,7 @@ async function generateDocumentation(data) {
 
   } catch (error) {
     console.error('OpenRouter API error:', error);
-    
+
     // Handle specific OpenRouter errors
     if (error.code === 'insufficient_quota' || error.status === 429) {
       throw new Error('API quota exceeded. Please check your OpenRouter account.');
@@ -88,6 +95,8 @@ async function generateDocumentation(data) {
       throw new Error('Invalid request. Please check your input parameters.');
     } else if (error.status === 500) {
       throw new Error('OpenRouter service error. Please try again later.');
+    } else if (error.name === 'TimeoutError' || error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+      throw new Error('API timeout. The request took too long to complete. Please try again.');
     } else {
       throw new Error(`OpenRouter API error: ${error.message}`);
     }

@@ -13,9 +13,6 @@ function App() {
   });
   const [doc, setDoc] = useState(null);
 
-  // API base URL - can be configured via environment variables
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-
   // Show notification
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -83,7 +80,7 @@ function App() {
       formData.append('image', file);
       
       try {
-        const response = await fetch(`${API_BASE_URL}/images/upload`, {
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/images/upload`, {
           method: 'POST',
           body: formData
         });
@@ -110,7 +107,7 @@ function App() {
   // Generate documentation using backend API
   const generateDocumentation = async (title, description, images) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/documentation/generate`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/documentation/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,6 +120,8 @@ function App() {
       });
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
@@ -161,10 +160,14 @@ function App() {
         uploadedImages
       );
       
+      // A estrutura real retornada pelo backend é:
+      // { success: true, documentation: { title, content, ... }, metadata: {...} }
+      const docData = documentation.documentation;
+      
       setDoc({
-        title: documentation.title,
-        intro: documentation.content,
-        steps: documentation.content,
+        title: docData.title,
+        intro: docData.content,
+        steps: docData.content,
         images: uploadedImages.map(img => ({ 
           src: img.url, 
           legend: img.caption 
@@ -308,6 +311,70 @@ function App() {
 
   // Documentation view screen
   if (step === 'view' && doc) {
+    // Função para renderizar o conteúdo markdown de forma simples
+    const renderContent = (content) => {
+      if (!content) return '';
+      
+      // Quebrar em seções baseadas em títulos markdown
+      const sections = content.split(/(?=^#+\s)/m);
+      
+      return sections.map((section, index) => {
+        if (!section.trim()) return null;
+        
+        // Extrair título e conteúdo
+        const lines = section.split('\n');
+        const titleLine = lines[0];
+        const contentLines = lines.slice(1);
+        
+        // Verificar se é um título
+        const titleMatch = titleLine.match(/^(#{1,6})\s+(.+)$/);
+        
+        if (titleMatch) {
+          const level = titleMatch[1].length;
+          const title = titleMatch[2];
+          const content = contentLines.join('\n').trim();
+          
+          return (
+            <div key={index} className="doc-section">
+              <div className={`doc-section-title doc-title-level-${level}`}>
+                {title}
+              </div>
+              <div className="doc-content">
+                {content.split('\n').map((line, lineIndex) => {
+                  if (line.trim() === '') return <br key={lineIndex} />;
+                  if (line.startsWith('- ')) {
+                    return <div key={lineIndex} className="doc-list-item">• {line.substring(2)}</div>;
+                  }
+                  if (line.startsWith('**') && line.endsWith('**')) {
+                    return <strong key={lineIndex}>{line.substring(2, line.length - 2)}</strong>;
+                  }
+                  return <div key={lineIndex}>{line}</div>;
+                })}
+              </div>
+            </div>
+          );
+        } else {
+          // Conteúdo sem título
+          return (
+            <div key={index} className="doc-section">
+              <div className="doc-content">
+                {section.split('\n').map((line, lineIndex) => {
+                  if (line.trim() === '') return <br key={lineIndex} />;
+                  if (line.startsWith('- ')) {
+                    return <div key={lineIndex} className="doc-list-item">• {line.substring(2)}</div>;
+                  }
+                  if (line.startsWith('**') && line.endsWith('**')) {
+                    return <strong key={lineIndex}>{line.substring(2, line.length - 2)}</strong>;
+                  }
+                  return <div key={lineIndex}>{line}</div>;
+                })}
+              </div>
+            </div>
+          );
+        }
+      });
+    };
+
     return (
       <div className="app-container">
         <div className="main-card fade-in">
@@ -318,15 +385,7 @@ function App() {
           <div className="doc-container">
             <h2 className="doc-title">{doc.title}</h2>
             
-            <div className="doc-section">
-              <div className="doc-section-title">📖 Introdução</div>
-              <div className="doc-content">{doc.intro}</div>
-            </div>
-            
-            <div className="doc-section">
-              <div className="doc-section-title">🔧 Como funciona</div>
-              <div className="doc-content">{doc.steps}</div>
-            </div>
+            {renderContent(doc.intro)}
             
             {doc.images.length > 0 && (
               <div className="doc-images">
