@@ -195,6 +195,89 @@ function App() {
     }
   };
 
+  // Download Word document
+  const handleDownloadWord = async () => {
+    if (doc) {
+      try {
+        showNotification('Gerando documento Word...');
+        
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/documentation/download-word`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: doc.title,
+            content: doc.intro
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Get filename from response headers
+        const contentDisposition = response.headers.get('content-disposition');
+        const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/);
+        const filename = filenameMatch ? filenameMatch[1] : 'documentacao.docx';
+
+        // Create blob and download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        showNotification('Documento Word baixado com sucesso!');
+      } catch (error) {
+        console.error('Word download error:', error);
+        showNotification(`Erro ao baixar documento: ${error.message}`, 'error');
+      }
+    }
+  };
+
+  // Preview Word document
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
+
+  const handlePreviewWord = async () => {
+    if (doc) {
+      try {
+        showNotification('Gerando preview do documento...');
+        
+        // First generate the Word document
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/documentation/download-word`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: doc.title,
+            content: doc.intro
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Create blob URL for preview
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        setPreviewUrl(url);
+        setShowPreview(true);
+        showNotification('Preview gerado com sucesso!');
+      } catch (error) {
+        console.error('Preview error:', error);
+        showNotification(`Erro ao gerar preview: ${error.message}`, 'error');
+      }
+    }
+  };
+
   // Remove image preview
   const removeImage = (index) => {
     const newImages = form.images.filter((_, i) => i !== index);
@@ -334,20 +417,61 @@ function App() {
           const title = titleMatch[2];
           const content = contentLines.join('\n').trim();
           
+          // Gerar ID para navegação
+          const sectionId = title.toLowerCase()
+            .replace(/[^a-z0-9\s]/g, '')
+            .replace(/\s+/g, '-');
+          
           return (
-            <div key={index} className="doc-section">
+            <div key={index} className="doc-section" id={sectionId}>
               <div className={`doc-section-title doc-title-level-${level}`}>
                 {title}
               </div>
               <div className="doc-content">
                 {content.split('\n').map((line, lineIndex) => {
                   if (line.trim() === '') return <br key={lineIndex} />;
+                  
+                  // Processar links de navegação
+                  const linkMatch = line.match(/\[([^\]]+)\]\(#([^)]+)\)/);
+                  if (linkMatch) {
+                    const linkText = linkMatch[1];
+                    const linkId = linkMatch[2];
+                    return (
+                      <div key={lineIndex} className="doc-list-item">
+                        <a 
+                          href={`#${linkId}`} 
+                          className="doc-nav-link"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            document.getElementById(linkId)?.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                        >
+                          {linkText}
+                        </a>
+                      </div>
+                    );
+                  }
+                  
+                  // Processar listas numeradas
+                  const numberedListMatch = line.match(/^(\d+)\.\s+(.+)$/);
+                  if (numberedListMatch) {
+                    return (
+                      <div key={lineIndex} className="doc-numbered-item">
+                        {numberedListMatch[1]}. {numberedListMatch[2]}
+                      </div>
+                    );
+                  }
+                  
+                  // Processar listas com bullets
                   if (line.startsWith('- ')) {
                     return <div key={lineIndex} className="doc-list-item">• {line.substring(2)}</div>;
                   }
+                  
+                  // Processar texto em negrito
                   if (line.startsWith('**') && line.endsWith('**')) {
                     return <strong key={lineIndex}>{line.substring(2, line.length - 2)}</strong>;
                   }
+                  
                   return <div key={lineIndex}>{line}</div>;
                 })}
               </div>
@@ -407,8 +531,11 @@ function App() {
               <button onClick={handleCopy} className="btn btn-secondary">
                 📋 Copiar texto
               </button>
-              <button disabled className="btn btn-secondary">
-                📄 Exportar PDF
+              <button onClick={handleDownloadWord} className="btn btn-secondary">
+                📄 Download Word
+              </button>
+              <button onClick={handlePreviewWord} className="btn btn-secondary">
+                👁️ Preview Word
               </button>
               <button disabled className="btn btn-secondary">
                 🔗 Compartilhar
@@ -424,6 +551,16 @@ function App() {
         {notification && (
           <div className={`notification ${notification.type}`}>
             {notification.message}
+          </div>
+        )}
+
+        {showPreview && previewUrl && (
+          <div className="preview-modal">
+            <div className="preview-content">
+              <h3>Preview do Documento Word</h3>
+              <iframe src={previewUrl} width="100%" height="800px" title="Preview Word Document" />
+              <button onClick={() => setShowPreview(false)} className="btn btn-primary">Fechar Preview</button>
+            </div>
           </div>
         )}
       </div>

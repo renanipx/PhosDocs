@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { generateDocumentation } = require('../services/openaiService');
+const { generateWordDocument, saveWordDocument } = require('../services/wordService');
 const { uploadImage } = require('../services/imageService');
+const path = require('path');
+const fs = require('fs-extra');
 
 // POST /api/documentation/generate
 // Receives form data and generates documentation
@@ -62,6 +65,73 @@ router.post('/generate', async (req, res) => {
     console.error('Documentation generation error:', error);
     res.status(500).json({
       error: 'Failed to generate documentation',
+      details: error.message
+    });
+  }
+});
+
+// POST /api/documentation/download-word
+// Generate and download Word document
+router.post('/download-word', async (req, res) => {
+  try {
+    const { title, content } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({
+        error: 'Title and content are required'
+      });
+    }
+
+    // Generate Word document
+    const buffer = await generateWordDocument({
+      title,
+      content,
+      images: []
+    });
+
+    // Create filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.docx`;
+
+    // Save file
+    const filePath = await saveWordDocument(buffer, filename);
+
+    // Send file for download
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+
+  } catch (error) {
+    console.error('Word download error:', error);
+    res.status(500).json({
+      error: 'Failed to generate Word document',
+      details: error.message
+    });
+  }
+});
+
+// GET /api/documentation/preview/:filename
+// Get Word document for preview
+router.get('/preview/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const filePath = path.join(__dirname, '../uploads', filename);
+
+    if (!await fs.pathExists(filePath)) {
+      return res.status(404).json({
+        error: 'Document not found'
+      });
+    }
+
+    // Send file for preview
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', 'inline');
+    res.sendFile(filePath);
+
+  } catch (error) {
+    console.error('Preview error:', error);
+    res.status(500).json({
+      error: 'Failed to preview document',
       details: error.message
     });
   }
