@@ -1,4 +1,4 @@
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat } = require('docx');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat, Hyperlink } = require('docx');
 const fs = require('fs-extra');
 const path = require('path');
 
@@ -55,6 +55,24 @@ async function generateWordDocument(data) {
                   after: 100
                 }
               });
+            } else if (section.type === 'hyperlink') {
+              return new Paragraph({
+                children: [
+                  new Hyperlink({
+                    children: [
+                      new TextRun({
+                        text: section.text,
+                        size: 24,
+                        color: "0563C1"
+                      })
+                    ],
+                    anchor: section.anchor
+                  })
+                ],
+                spacing: {
+                  after: 100
+                }
+              });
             } else {
               return new Paragraph({
                 children: [
@@ -104,6 +122,28 @@ function parseMarkdownContent(content) {
         type: 'heading',
         level: headingMatch[1].length,
         content: headingMatch[2]
+      });
+      continue;
+    }
+
+    // Check for hyperlinks in sumário
+    const hyperlinkMatch = line.match(/^(\d+)\.\s+\[([^\]]+)\]\(#([^)]+)\)/);
+    if (hyperlinkMatch) {
+      sections.push({
+        type: 'hyperlink',
+        text: `${hyperlinkMatch[1]}. ${hyperlinkMatch[2]}`,
+        anchor: hyperlinkMatch[3]
+      });
+      continue;
+    }
+
+    // Check for regular hyperlinks
+    const linkMatch = line.match(/\[([^\]]+)\]\(#([^)]+)\)/);
+    if (linkMatch) {
+      sections.push({
+        type: 'hyperlink',
+        text: linkMatch[1],
+        anchor: linkMatch[2]
       });
       continue;
     }

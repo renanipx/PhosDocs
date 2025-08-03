@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function App() {
   const [step, setStep] = useState('form');
@@ -176,6 +176,13 @@ function App() {
       
       setStep('view');
       showNotification('Documentação gerada com sucesso!');
+      
+      setTimeout(async () => {
+        const success = await handlePreviewWord();
+        if (success) {
+          setShowPreview(true);
+        }
+      }, 1000);
     } catch (error) {
       showNotification(`Erro ao gerar documentação: ${error.message}`, 'error');
     } finally {
@@ -208,7 +215,8 @@ function App() {
           },
           body: JSON.stringify({
             title: doc.title,
-            content: doc.intro
+            content: doc.intro,
+            images: doc.images
           })
         });
 
@@ -242,14 +250,23 @@ function App() {
 
   // Preview Word document
   const [showPreview, setShowPreview] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState('');
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Cleanup blob URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        window.URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const handlePreviewWord = async () => {
     if (doc) {
       try {
-        showNotification('Gerando preview do documento...');
+        setPreviewLoading(true);
         
-        // First generate the Word document
         const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/documentation/download-word`, {
           method: 'POST',
           headers: {
@@ -257,7 +274,8 @@ function App() {
           },
           body: JSON.stringify({
             title: doc.title,
-            content: doc.intro
+            content: doc.intro,
+            images: doc.images
           })
         });
 
@@ -265,17 +283,19 @@ function App() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        // Create blob URL for preview
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         setPreviewUrl(url);
-        setShowPreview(true);
-        showNotification('Preview gerado com sucesso!');
+        setPreviewLoading(false);
+        return true;
       } catch (error) {
-        console.error('Preview error:', error);
-        showNotification(`Erro ao gerar preview: ${error.message}`, 'error');
+        console.error('Erro ao gerar preview do Word:', error);
+        showNotification(`Erro ao gerar preview do Word: ${error.message}`, 'error');
+        setPreviewLoading(false);
+        return false;
       }
     }
+    return false;
   };
 
   // Remove image preview
@@ -394,111 +414,6 @@ function App() {
 
   // Documentation view screen
   if (step === 'view' && doc) {
-    // Função para renderizar o conteúdo markdown de forma simples
-    const renderContent = (content) => {
-      if (!content) return '';
-      
-      // Quebrar em seções baseadas em títulos markdown
-      const sections = content.split(/(?=^#+\s)/m);
-      
-      return sections.map((section, index) => {
-        if (!section.trim()) return null;
-        
-        // Extrair título e conteúdo
-        const lines = section.split('\n');
-        const titleLine = lines[0];
-        const contentLines = lines.slice(1);
-        
-        // Verificar se é um título
-        const titleMatch = titleLine.match(/^(#{1,6})\s+(.+)$/);
-        
-        if (titleMatch) {
-          const level = titleMatch[1].length;
-          const title = titleMatch[2];
-          const content = contentLines.join('\n').trim();
-          
-          // Gerar ID para navegação
-          const sectionId = title.toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '')
-            .replace(/\s+/g, '-');
-          
-          return (
-            <div key={index} className="doc-section" id={sectionId}>
-              <div className={`doc-section-title doc-title-level-${level}`}>
-                {title}
-              </div>
-              <div className="doc-content">
-                {content.split('\n').map((line, lineIndex) => {
-                  if (line.trim() === '') return <br key={lineIndex} />;
-                  
-                  // Processar links de navegação
-                  const linkMatch = line.match(/\[([^\]]+)\]\(#([^)]+)\)/);
-                  if (linkMatch) {
-                    const linkText = linkMatch[1];
-                    const linkId = linkMatch[2];
-                    return (
-                      <div key={lineIndex} className="doc-list-item">
-                        <a 
-                          href={`#${linkId}`} 
-                          className="doc-nav-link"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            document.getElementById(linkId)?.scrollIntoView({ behavior: 'smooth' });
-                          }}
-                        >
-                          {linkText}
-                        </a>
-                      </div>
-                    );
-                  }
-                  
-                  // Processar listas numeradas
-                  const numberedListMatch = line.match(/^(\d+)\.\s+(.+)$/);
-                  if (numberedListMatch) {
-                    return (
-                      <div key={lineIndex} className="doc-numbered-item">
-                        {numberedListMatch[1]}. {numberedListMatch[2]}
-                      </div>
-                    );
-                  }
-                  
-                  // Processar listas com bullets
-                  if (line.startsWith('- ')) {
-                    return <div key={lineIndex} className="doc-list-item">• {line.substring(2)}</div>;
-                  }
-                  
-                  // Processar texto em negrito
-                  if (line.startsWith('**') && line.endsWith('**')) {
-                    return <strong key={lineIndex}>{line.substring(2, line.length - 2)}</strong>;
-                  }
-                  
-                  return <div key={lineIndex}>{line}</div>;
-                })}
-              </div>
-            </div>
-          );
-        } else {
-          // Conteúdo sem título
-          return (
-            <div key={index} className="doc-section">
-              <div className="doc-content">
-                {section.split('\n').map((line, lineIndex) => {
-                  if (line.trim() === '') return <br key={lineIndex} />;
-                  if (line.startsWith('- ')) {
-                    return <div key={lineIndex} className="doc-list-item">• {line.substring(2)}</div>;
-                  }
-                  if (line.startsWith('**') && line.endsWith('**')) {
-                    return <strong key={lineIndex}>{line.substring(2, line.length - 2)}</strong>;
-                  }
-                  return <div key={lineIndex}>{line}</div>;
-                })}
-              </div>
-            </div>
-          );
-        }
-      });
-    };
-
     return (
       <div className="app-container">
         <div className="main-card fade-in">
@@ -506,44 +421,54 @@ function App() {
             <img src="/phosdocs_img.png" alt="PhosDocs Logo" className="logo" />
           </div>
           
-          <div className="doc-container">
-            <h2 className="doc-title">{doc.title}</h2>
-            
-            {renderContent(doc.intro)}
-            
-            {doc.images.length > 0 && (
-              <div className="doc-images">
-                <div className="doc-section-title">🖼️ Imagens</div>
-                {doc.images.map((img, i) => (
-                  <div key={i} className="doc-image-item">
-                    <img 
-                      src={img.src} 
-                      alt={`doc-img-${i}`} 
-                      className="doc-image"
-                    />
-                    <div className="doc-image-caption">{img.legend}</div>
-                  </div>
-                ))}
+          {/* Show Word preview or just buttons */}
+          {showPreview && previewUrl ? (
+            <div className="word-preview-container">
+              <div className="word-preview-header">
+                <h3>📄 Documento Word Gerado</h3>
               </div>
-            )}
-            
-            <div className="action-buttons">
-              <button onClick={handleCopy} className="btn btn-secondary">
-                📋 Copiar texto
-              </button>
-              <button onClick={handleDownloadWord} className="btn btn-secondary">
-                📄 Download Word
-              </button>
-              <button onClick={handlePreviewWord} className="btn btn-secondary">
-                👁️ Preview Word
-              </button>
-              <button disabled className="btn btn-secondary">
-                🔗 Compartilhar
-              </button>
-              <button onClick={() => setStep('form')} className="btn btn-primary">
-                ✨ Nova documentação
-              </button>
+              <div className="word-preview-iframe">
+                <iframe 
+                  src={previewUrl} 
+                  width="100%" 
+                  height="600px" 
+                  title="Word Document Preview"
+                  frameBorder="0"
+                />
+              </div>
+              <div className="word-preview-actions">
+                <button onClick={handleDownloadWord} className="btn btn-primary">
+                  📥 Download Word
+                </button>
+              </div>
             </div>
+          ) : (
+            <div className="doc-placeholder">
+              <div className="doc-placeholder-content">
+                <h3>📄 Documentação Gerada</h3>
+                <p>{previewLoading ? 'Carregando preview do Word...' : 'Preview do Word carregado'}</p>
+                {previewLoading && (
+                  <div className="loading-spinner">
+                    <div className="spinner"></div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <div className="action-buttons">
+            <button onClick={handleCopy} className="btn btn-secondary">
+              📋 Copiar texto
+            </button>
+            <button onClick={handleDownloadWord} className="btn btn-secondary">
+              📄 Download Word
+            </button>
+            <button disabled className="btn btn-secondary">
+              🔗 Compartilhar
+            </button>
+            <button onClick={() => setStep('form')} className="btn btn-primary">
+              ✨ Nova documentação
+            </button>
           </div>
         </div>
         
@@ -551,16 +476,6 @@ function App() {
         {notification && (
           <div className={`notification ${notification.type}`}>
             {notification.message}
-          </div>
-        )}
-
-        {showPreview && previewUrl && (
-          <div className="preview-modal">
-            <div className="preview-content">
-              <h3>Preview do Documento Word</h3>
-              <iframe src={previewUrl} width="100%" height="800px" title="Preview Word Document" />
-              <button onClick={() => setShowPreview(false)} className="btn btn-primary">Fechar Preview</button>
-            </div>
           </div>
         )}
       </div>
