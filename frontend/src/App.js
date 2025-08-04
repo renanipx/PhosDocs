@@ -12,6 +12,20 @@ function App() {
     imagePreviews: []
   });
   const [doc, setDoc] = useState(null);
+  
+  // Preview Word document states
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Cleanup blob URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        window.URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   // Show notification
   const showNotification = (message, type = 'success') => {
@@ -65,6 +79,12 @@ function App() {
       newErrors.description = 'Descrição é obrigatória';
     } else if (form.description.length < 20) {
       newErrors.description = 'Descrição deve ter pelo menos 20 caracteres';
+    } else if (form.description.length > 5000) {
+      newErrors.description = 'Descrição muito longa. Máximo 5000 caracteres para evitar timeouts.';
+    }
+    
+    if (form.images.length > 5) {
+      newErrors.images = 'Máximo 5 imagens permitidas para evitar timeouts.';
     }
     
     setErrors(newErrors);
@@ -152,13 +172,39 @@ function App() {
         uploadedImages = await uploadImages(form.images);
       }
       
-      // Generate documentation
-      showNotification('Gerando documentação...');
-      const documentation = await generateDocumentation(
-        form.title,
-        form.description,
-        uploadedImages
-      );
+      // Generate documentation with retry logic
+      showNotification('Gerando documentação... (pode levar alguns minutos)');
+      
+      let documentation;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          documentation = await generateDocumentation(
+            form.title,
+            form.description,
+            uploadedImages
+          );
+          break; // Success, exit retry loop
+        } catch (error) {
+          retryCount++;
+          console.error(`Tentativa ${retryCount} falhou:`, error.message);
+          
+          if (error.message.includes('timeout') || error.message.includes('timeout')) {
+            if (retryCount < maxRetries) {
+              showNotification(`Timeout detectado. Tentativa ${retryCount + 1} de ${maxRetries}...`, 'warning');
+              // Wait before retrying
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } else {
+              throw new Error('Todas as tentativas falharam devido a timeout. Tente com uma descrição mais curta ou menos imagens.');
+            }
+          } else {
+            // Non-timeout error, don't retry
+            throw error;
+          }
+        }
+      }
       
       // A estrutura real retornada pelo backend é:
       // { success: true, documentation: { title, content, ... }, metadata: {...} }
@@ -184,6 +230,7 @@ function App() {
         }
       }, 1000);
     } catch (error) {
+      console.error('Erro final:', error);
       showNotification(`Erro ao gerar documentação: ${error.message}`, 'error');
     } finally {
       setLoading(false);
@@ -249,19 +296,6 @@ function App() {
   };
 
   // Preview Word document
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-
-  // Cleanup blob URL when component unmounts
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        window.URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
-
   const handlePreviewWord = async () => {
     if (doc) {
       try {
@@ -442,16 +476,21 @@ function App() {
                 </button>
               </div>
             </div>
+          ) : previewLoading ? (
+            <div className="doc-placeholder">
+              <div className="doc-placeholder-content">
+                <h3>📄 Gerando Preview do Word</h3>
+                <p>Carregando preview do documento...</p>
+                <div className="loading-spinner">
+                  <div className="spinner"></div>
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="doc-placeholder">
               <div className="doc-placeholder-content">
                 <h3>📄 Documentação Gerada</h3>
-                <p>{previewLoading ? 'Carregando preview do Word...' : 'Preview do Word carregado'}</p>
-                {previewLoading && (
-                  <div className="loading-spinner">
-                    <div className="spinner"></div>
-                  </div>
-                )}
+                <p>Documentação criada com sucesso! Use os botões abaixo para copiar ou baixar.</p>
               </div>
             </div>
           )}
@@ -463,6 +502,24 @@ function App() {
             <button onClick={handleDownloadWord} className="btn btn-secondary">
               📄 Download Word
             </button>
+            {!showPreview && !previewLoading && (
+              <button 
+                onClick={async () => {
+                  setPreviewLoading(true);
+                  const success = await handlePreviewWord();
+                  if (success) {
+                    setShowPreview(true);
+                    showNotification('Preview do Word carregado!');
+                  } else {
+                    showNotification('Erro ao gerar preview do Word', 'error');
+                  }
+                  setPreviewLoading(false);
+                }} 
+                className="btn btn-secondary"
+              >
+                👁️ Gerar Preview
+              </button>
+            )}
             <button disabled className="btn btn-secondary">
               🔗 Compartilhar
             </button>

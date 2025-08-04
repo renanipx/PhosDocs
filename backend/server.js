@@ -2,6 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { 
+  SERVER_TIMEOUT, 
+  RATE_LIMIT_WINDOW_MS, 
+  RATE_LIMIT_MAX_REQUESTS, 
+  BODY_LIMIT 
+} = require('./config/timeouts');
 // Load environment variables
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -14,7 +20,7 @@ const PORT = process.env.PORT || 5000;
 
 // Increase timeout for AI operations
 const server = require('http').createServer(app);
-server.timeout = 300000; // 5 minutes timeout
+server.timeout = SERVER_TIMEOUT; // Server timeout from configuration
 
 // Security middleware
 app.use(helmet());
@@ -29,15 +35,15 @@ app.use(cors({
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || RATE_LIMIT_WINDOW_MS,
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || RATE_LIMIT_MAX_REQUESTS,
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use(limiter);
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
 
 // Static files (for uploaded images)
 app.use('/uploads', express.static('uploads'));
@@ -73,5 +79,5 @@ server.listen(PORT, () => {
   console.log(`🚀 PhosDocs Backend running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`⏱️  Server timeout: 5 minutes`);
+  console.log(`⏱️  Server timeout: ${SERVER_TIMEOUT / 1000} seconds`);
 }); 
