@@ -82,12 +82,41 @@ router.post('/download-word', async (req, res) => {
       });
     }
 
+    // Validate content is not empty
+    if (typeof content !== 'string' || content.trim().length === 0) {
+      return res.status(400).json({
+        error: 'Content cannot be empty'
+      });
+    }
+
     // Generate Word document
+    console.log(`Generating Word document for title: "${title}"`);
+    console.log(`Content length: ${content.length} characters`);
+    
     const buffer = await generateWordDocument({
       title,
       content,
       images: []
     });
+
+    // Validate buffer
+    if (!buffer || buffer.length === 0) {
+      console.error('Generated buffer is empty or invalid');
+      return res.status(500).json({
+        error: 'Generated Word document is empty or invalid'
+      });
+    }
+
+    // Ensure buffer is a valid Buffer
+    if (!Buffer.isBuffer(buffer)) {
+      console.error('Generated buffer is not a valid Buffer');
+      return res.status(500).json({
+        error: 'Generated Word document buffer is invalid'
+      });
+    }
+
+    console.log(`Word document generated successfully. Buffer size: ${buffer.length} bytes`);
+    console.log(`Buffer type: ${typeof buffer}, is Buffer: ${Buffer.isBuffer(buffer)}`);
 
     // Create filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -96,10 +125,17 @@ router.post('/download-word', async (req, res) => {
     // Save file
     const filePath = await saveWordDocument(buffer, filename);
 
-    // Send file for download
+    // Set proper headers for Word document
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(buffer);
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    
+    // Send buffer as binary data
+    res.write(buffer);
+    res.end();
 
   } catch (error) {
     console.error('Word download error:', error);

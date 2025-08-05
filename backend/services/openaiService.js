@@ -82,16 +82,18 @@ async function generateDocumentation(data) {
       ? description.substring(0, MAX_DESCRIPTION_LENGTH) + '...'
       : description;
 
-    const userPrompt = `TÍTULO ORIGINAL: ${title}
+    const userPromptTemplate = process.env.USER_PROMPT_TEMPLATE;
+    
+    if (!userPromptTemplate) {
+      throw new Error('USER_PROMPT_TEMPLATE não está configurado no arquivo .env');
+    }
 
-DESCRIÇÃO TÉCNICA:
-${truncatedDescription}
-
-${images && images.length > 0 ? `IMAGENS INCLUÍDAS:
-${images.map((img, index) => `- Imagem ${index + 1}: ${img.caption || 'Sem legenda'}`).join('\n')}
-` : ''}
-
-Por favor, crie uma documentação técnica estruturada e profissional baseada nas informações acima.`;
+    const userPrompt = userPromptTemplate
+      .replace('{TITLE}', title)
+      .replace('{DESCRIPTION}', truncatedDescription)
+      .replace('{IMAGES}', images && images.length > 0 ? 
+        `IMAGENS INCLUÍDAS:\n${images.map((img, index) => `- Imagem ${index + 1}: ${img.caption || 'Sem legenda'}`).join('\n')}` : 
+        '');
 
     // Retry logic
     let lastError;
@@ -199,6 +201,12 @@ async function generateImageCaption(imageDescription) {
       try {
         console.log(`Tentativa ${attempt} de ${MAX_RETRIES} para gerar legenda`);
 
+        const imageCaptionPrompt = process.env.IMAGE_CAPTION_PROMPT;
+        
+        if (!imageCaptionPrompt) {
+          throw new Error('IMAGE_CAPTION_PROMPT não está configurado no arquivo .env');
+        }
+
         const completion = await openRouter.chat.completions.create({
           model: process.env.OPENROUTER_MODEL || 'openai/gpt-3.5-turbo',
           messages: [
@@ -208,7 +216,7 @@ async function generateImageCaption(imageDescription) {
             },
             {
               role: 'user',
-              content: `Crie uma legenda clara e descritiva para a seguinte imagem: ${imageDescription}. A legenda deve explicar o que a imagem mostra de forma simples e didática.`
+              content: imageCaptionPrompt.replace('{DESCRIPTION}', imageDescription)
             }
           ],
           max_tokens: 100,
