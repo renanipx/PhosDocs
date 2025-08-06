@@ -40,7 +40,7 @@ async function generateWordDocument(data) {
           new Paragraph({
             children: [
               new TextRun({
-                text: "Release Notes",
+                text: "Notas de Lançamento",
                 size: 36,
                 bold: true,
                 color: "000000"
@@ -81,7 +81,7 @@ async function generateWordDocument(data) {
                       new Paragraph({
                         children: [
                           new TextRun({
-                            text: "Version Number:",
+                            text: "Versão:",
                             size: 16,
                             bold: true,
                             color: "0563C1"
@@ -122,7 +122,7 @@ async function generateWordDocument(data) {
                       new Paragraph({
                         children: [
                           new TextRun({
-                            text: "Release Date:",
+                            text: "Data de Lançamento:",
                             size: 16,
                             bold: true,
                             color: "0563C1"
@@ -173,124 +173,154 @@ async function generateWordDocument(data) {
           }),
 
           // New Features Section
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "New Features",
-                size: 24,
-                bold: true,
-                color: "000000"
-              })
-            ],
-            spacing: {
-              after: 100
-            }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "─".repeat(30),
-                size: 20,
-                color: "008080"
-              })
-            ],
-            spacing: {
-              after: 100
-            }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "Include the new features that were added during this release.",
-                size: 16,
-                color: "000000"
-              })
-            ],
-            spacing: {
-              after: 150
-            }
-          }),
-          ...createStyledContentList(sections.filter(s => s.type === 'feature')),
+          ...(sections.filter(s => s.type === 'feature').length > 0 ? [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Novas Funcionalidades",
+                  size: 24,
+                  bold: true,
+                  color: "000000"
+                })
+              ],
+              spacing: {
+                after: 100
+              }
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "─".repeat(30),
+                  size: 20,
+                  color: "008080"
+                })
+              ],
+              spacing: {
+                after: 100
+              }
+            }),
+            ...createStyledContentList(sections.filter(s => s.type === 'feature'))
+          ] : []),
 
           // Bug Fixes Section
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "Bug Fixes",
-                size: 24,
-                bold: true,
-                color: "000000"
-              })
-            ],
-            spacing: {
-              after: 100
-            }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "─".repeat(30),
-                size: 20,
-                color: "008080"
-              })
-            ],
-            spacing: {
-              after: 100
-            }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "Add any issues that were fixed.",
-                size: 16,
-                color: "000000"
-              })
-            ],
-            spacing: {
-              after: 150
-            }
-          }),
-          ...createStyledContentList(sections.filter(s => s.type === 'bugfix')),
+          ...(sections.filter(s => s.type === 'bugfix').length > 0 ? [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Correções de Erros",
+                  size: 24,
+                  bold: true,
+                  color: "000000"
+                })
+              ],
+              spacing: {
+                after: 100
+              }
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "─".repeat(30),
+                  size: 20,
+                  color: "008080"
+                })
+              ],
+              spacing: {
+                after: 100
+              }
+            }),
+            ...createStyledContentList(sections.filter(s => s.type === 'bugfix'))
+          ] : []),
 
           // Performance Improvements Section
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "Performance Improvements",
-                size: 24,
-                bold: true,
-                color: "000000"
-              })
-            ],
-            spacing: {
-              after: 100
-            }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "─".repeat(30),
-                size: 20,
-                color: "008080"
-              })
-            ],
-            spacing: {
-              after: 100
-            }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "Include any enhancements and improvements made (speed, upload time, search, etc.)",
-                size: 16,
-                color: "000000"
-              })
-            ],
-            spacing: {
-              after: 150
-            }
-          }),
-          ...createStyledContentList(sections.filter(s => s.type === 'performance'))
+          ...(sections.filter(s => s.type === 'performance').length > 0 ? [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Melhorias de Desempenho",
+                  size: 24,
+                  bold: true,
+                  color: "000000"
+                })
+              ],
+              spacing: {
+                after: 100
+              }
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "─".repeat(30),
+                  size: 20,
+                  color: "008080"
+                })
+              ],
+              spacing: {
+                after: 100
+              }
+            }),
+            ...createStyledContentList(sections.filter(s => s.type === 'performance'))
+          ] : []),
+
+          // Security Updates Section
+          ...(sections.filter(s => s.type === 'security').length > 0 ? [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Atualizações de Segurança",
+                  size: 24,
+                  bold: true,
+                  color: "000000"
+                })
+              ],
+              spacing: {
+                after: 100
+              }
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "─".repeat(30),
+                  size: 20,
+                  color: "008080"
+                })
+              ],
+              spacing: {
+                after: 100
+              }
+            }),
+            ...createStyledContentList(sections.filter(s => s.type === 'security'))
+          ] : []),
+
+          // Additional Resources Section
+          ...(sections.filter(s => s.type === 'resource').length > 0 ? [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Recursos Adicionais",
+                  size: 24,
+                  bold: true,
+                  color: "000000"
+                })
+              ],
+              spacing: {
+                after: 100
+              }
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "─".repeat(30),
+                  size: 20,
+                  color: "008080"
+                })
+              ],
+              spacing: {
+                after: 100
+              }
+            }),
+            ...createStyledContentList(sections.filter(s => s.type === 'resource'))
+          ] : [])
         ]
       }]
     });
@@ -447,8 +477,8 @@ function parseMarkdownContent(content) {
     return [];
   }
 
-  const sections = [];
-  const lines = content.split('\n');
+      const sections = [];
+    const lines = content.split('\n');
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -458,7 +488,36 @@ function parseMarkdownContent(content) {
     // Categorize content based on keywords and structure
     const lowerLine = line.toLowerCase();
     
-    if (lowerLine.includes('nova') || lowerLine.includes('new') || lowerLine.includes('adicionado') || lowerLine.includes('implementado')) {
+    // Check for structured markers first - more robust matching
+    const trimmedLine = line.trim();
+    const lowerTrimmedLine = trimmedLine.toLowerCase();
+    
+    if (lowerTrimmedLine.startsWith('[nova]') || lowerTrimmedLine.startsWith('[new]') || lowerTrimmedLine.startsWith('[funcionalidade]')) {
+      sections.push({
+        type: 'feature',
+        content: trimmedLine.replace(/^\[(nova|new|funcionalidade)\]\s*/i, '').trim()
+      });
+    } else if (lowerTrimmedLine.startsWith('[correção]') || lowerTrimmedLine.startsWith('[bug]') || lowerTrimmedLine.startsWith('[fixed]')) {
+      sections.push({
+        type: 'bugfix',
+        content: trimmedLine.replace(/^\[(correção|bug|fixed)\]\s*/i, '').trim()
+      });
+    } else if (lowerTrimmedLine.startsWith('[performance]') || lowerTrimmedLine.startsWith('[melhoria]') || lowerTrimmedLine.startsWith('[speed]')) {
+      sections.push({
+        type: 'performance',
+        content: trimmedLine.replace(/^\[(performance|melhoria|speed)\]\s*/i, '').trim()
+      });
+    } else if (lowerTrimmedLine.startsWith('[segurança]') || lowerTrimmedLine.startsWith('[security]')) {
+      sections.push({
+        type: 'security',
+        content: trimmedLine.replace(/^\[(segurança|security)\]\s*/i, '').trim()
+      });
+    } else if (lowerTrimmedLine.startsWith('[recurso]') || lowerTrimmedLine.startsWith('[resource]') || lowerTrimmedLine.startsWith('[manual]')) {
+      sections.push({
+        type: 'resource',
+        content: trimmedLine.replace(/^\[(recurso|resource|manual)\]\s*/i, '').trim()
+      });
+    } else if (lowerLine.includes('nova') || lowerLine.includes('new') || lowerLine.includes('adicionado') || lowerLine.includes('implementado')) {
       sections.push({
         type: 'feature',
         content: line

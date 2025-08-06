@@ -7,12 +7,18 @@ function App() {
   const [notification, setNotification] = useState(null);
   const [form, setForm] = useState({
     title: '',
-    description: '',
+    description: `Use este padrão para organizar suas informações:
+
+[funcionalidade] Nova funcionalidade implementada
+[bug] Bug corrigido
+[performance] Melhoria de velocidade
+[segurança] Atualização de segurança
+[recurso] Manual atualizado`,
     images: [],
     imagePreviews: []
   });
   const [doc, setDoc] = useState(null);
-  
+
   // Preview Word document states
   const [showPreview, setShowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -37,7 +43,7 @@ function App() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors({ ...errors, [name]: '' });
@@ -47,19 +53,19 @@ function App() {
   // Handle image uploads
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
-    
+
     // Validate file sizes (max 5MB each)
     const maxSize = 5 * 1024 * 1024; // 5MB
     const validFiles = files.filter(file => file.size <= maxSize);
-    
+
     if (validFiles.length !== files.length) {
       showNotification('Algumas imagens foram ignoradas por serem muito grandes (máximo 5MB cada)', 'error');
     }
-    
+
     if (validFiles.length > 0) {
       showNotification(`${validFiles.length} imagem(ns) selecionada(s) com sucesso!`);
     }
-    
+
     setForm({
       ...form,
       images: validFiles,
@@ -70,11 +76,11 @@ function App() {
   // Validate form
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!form.title.trim()) {
       newErrors.title = 'Título é obrigatório';
     }
-    
+
     if (!form.description.trim()) {
       newErrors.description = 'Descrição é obrigatória';
     } else if (form.description.length < 20) {
@@ -82,11 +88,11 @@ function App() {
     } else if (form.description.length > 5000) {
       newErrors.description = 'Descrição muito longa. Máximo 5000 caracteres para evitar timeouts.';
     }
-    
+
     if (form.images.length > 5) {
       newErrors.images = 'Máximo 5 imagens permitidas para evitar timeouts.';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -94,21 +100,21 @@ function App() {
   // Upload images to backend
   const uploadImages = async (files) => {
     const uploadedImages = [];
-    
+
     for (const file of files) {
       const formData = new FormData();
       formData.append('image', file);
-      
+
       try {
         const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/images/upload`, {
           method: 'POST',
           body: formData
         });
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const result = await response.json();
         uploadedImages.push({
           url: `http://localhost:5000${result.url}`,
@@ -120,7 +126,7 @@ function App() {
         showNotification(`Erro ao fazer upload da imagem: ${error.message}`, 'error');
       }
     }
-    
+
     return uploadedImages;
   };
 
@@ -138,13 +144,13 @@ function App() {
           images
         })
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API Error:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
       return result;
     } catch (error) {
@@ -156,14 +162,14 @@ function App() {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       showNotification('Por favor, corrija os erros no formulário', 'error');
       return;
     }
-    
+
     setLoading(true);
-    
+
     try {
       // Upload images first
       let uploadedImages = [];
@@ -171,14 +177,14 @@ function App() {
         showNotification('Fazendo upload das imagens...');
         uploadedImages = await uploadImages(form.images);
       }
-      
+
       // Generate documentation with retry logic
       showNotification('Gerando documentação... (pode levar alguns minutos)');
-      
+
       let documentation;
       let retryCount = 0;
       const maxRetries = 3;
-      
+
       while (retryCount < maxRetries) {
         try {
           documentation = await generateDocumentation(
@@ -190,7 +196,7 @@ function App() {
         } catch (error) {
           retryCount++;
           console.error(`Tentativa ${retryCount} falhou:`, error.message);
-          
+
           if (error.message.includes('timeout') || error.message.includes('timeout')) {
             if (retryCount < maxRetries) {
               showNotification(`Timeout detectado. Tentativa ${retryCount + 1} de ${maxRetries}...`, 'warning');
@@ -205,24 +211,24 @@ function App() {
           }
         }
       }
-      
+
       // A estrutura real retornada pelo backend é:
       // { success: true, documentation: { title, content, ... }, metadata: {...} }
       const docData = documentation.documentation;
-      
+
       setDoc({
         title: docData.title,
         intro: docData.content,
         steps: docData.content,
-        images: uploadedImages.map(img => ({ 
-          src: img.url, 
-          legend: img.caption 
+        images: uploadedImages.map(img => ({
+          src: img.url,
+          legend: img.caption
         }))
       });
-      
+
       setStep('view');
       showNotification('Documentação gerada com sucesso!');
-      
+
       setTimeout(async () => {
         const success = await handlePreviewWord();
         if (success) {
@@ -254,7 +260,7 @@ function App() {
     if (doc) {
       try {
         showNotification('Gerando documento Word...');
-        
+
         const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/documentation/download-word`, {
           method: 'POST',
           headers: {
@@ -300,7 +306,7 @@ function App() {
     if (doc) {
       try {
         setPreviewLoading(true);
-        
+
         const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/documentation/download-word`, {
           method: 'POST',
           headers: {
@@ -349,43 +355,43 @@ function App() {
             <img src="/phosdocs_img.png" alt="PhosDocs Logo" className="logo" />
             <p className="logo-subtitle">Crie documentação técnica inteligente</p>
           </div>
-          
+
           <div className="form-container">
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label className="form-label">Título da documentação</label>
-                <input 
-                  name="title" 
-                  value={form.title} 
-                  onChange={handleChange} 
-                  required 
+                <input
+                  name="title"
+                  value={form.title}
+                  onChange={handleChange}
+                  required
                   className={`form-input ${errors.title ? 'form-input-error' : ''}`}
                   placeholder="Digite o título da sua documentação"
                 />
                 {errors.title && <div className="error-message">{errors.title}</div>}
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">Descrição técnica</label>
-                <textarea 
-                  name="description" 
-                  value={form.description} 
-                  onChange={handleChange} 
-                  required 
-                  rows={4} 
+                <textarea
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  required
+                  rows={8}
                   className={`form-input form-textarea ${errors.description ? 'form-input-error' : ''}`}
                   placeholder="Descreva o processo ou tecnologia que você quer documentar"
                 />
                 {errors.description && <div className="error-message">{errors.description}</div>}
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">Imagens (opcional)</label>
                 <div className="file-upload">
-                  <input 
-                    type="file" 
-                    multiple 
-                    accept="image/*" 
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
                     onChange={handleImageChange}
                     id="image-upload"
                   />
@@ -397,12 +403,12 @@ function App() {
                   <div className="image-previews">
                     {form.imagePreviews.map((src, i) => (
                       <div key={i} className="image-preview-container">
-                        <img 
-                          src={src} 
-                          alt={`preview ${i}`} 
-                          className="image-preview" 
+                        <img
+                          src={src}
+                          alt={`preview ${i}`}
+                          className="image-preview"
                         />
-                        <button 
+                        <button
                           type="button"
                           onClick={() => removeImage(i)}
                           className="remove-image-btn"
@@ -415,9 +421,9 @@ function App() {
                   </div>
                 )}
               </div>
-              
-              <button 
-                type="submit" 
+
+              <button
+                type="submit"
                 className={`btn btn-primary ${loading ? 'btn-loading' : ''}`}
                 disabled={loading}
               >
@@ -435,7 +441,7 @@ function App() {
             </form>
           </div>
         </div>
-        
+
         {/* Notification */}
         {notification && (
           <div className={`notification ${notification.type}`}>
@@ -454,7 +460,7 @@ function App() {
           <div className="logo-container">
             <img src="/phosdocs_img.png" alt="PhosDocs Logo" className="logo" />
           </div>
-          
+
           {/* Show Word preview or just buttons */}
           {showPreview && previewUrl ? (
             <div className="word-preview-container">
@@ -462,10 +468,10 @@ function App() {
                 <h3>📄 Documento Word Gerado</h3>
               </div>
               <div className="word-preview-iframe">
-                <iframe 
-                  src={previewUrl} 
-                  width="100%" 
-                  height="600px" 
+                <iframe
+                  src={previewUrl}
+                  width="100%"
+                  height="600px"
                   title="Word Document Preview"
                   frameBorder="0"
                 />
@@ -494,7 +500,7 @@ function App() {
               </div>
             </div>
           )}
-          
+
           <div className="action-buttons">
             <button onClick={handleCopy} className="btn btn-secondary">
               📋 Copiar texto
@@ -503,7 +509,7 @@ function App() {
               📄 Download Word
             </button>
             {!showPreview && !previewLoading && (
-              <button 
+              <button
                 onClick={async () => {
                   setPreviewLoading(true);
                   const success = await handlePreviewWord();
@@ -514,7 +520,7 @@ function App() {
                     showNotification('Erro ao gerar preview do Word', 'error');
                   }
                   setPreviewLoading(false);
-                }} 
+                }}
                 className="btn btn-secondary"
               >
                 👁️ Gerar Preview
@@ -528,7 +534,7 @@ function App() {
             </button>
           </div>
         </div>
-        
+
         {/* Notification */}
         {notification && (
           <div className={`notification ${notification.type}`}>
