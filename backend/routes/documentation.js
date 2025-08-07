@@ -89,10 +89,6 @@ router.post('/download-word', async (req, res) => {
       });
     }
 
-    // Generate Word document
-    console.log(`Generating Word document for title: "${title}"`);
-    console.log(`Content length: ${content.length} characters`);
-    
     const buffer = await generateWordDocument({
       title,
       content,
@@ -125,8 +121,8 @@ router.post('/download-word', async (req, res) => {
     // Save file
     const filePath = await saveWordDocument(buffer, filename);
 
-    // Set proper headers for Word document
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    // Set proper headers for Word document with UTF-8 encoding
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Length', buffer.length);
     res.setHeader('Cache-Control', 'no-cache');

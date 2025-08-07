@@ -18,6 +18,9 @@ const imageRoutes = require('./routes/images');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Configure UTF-8 encoding
+app.set('charset', 'utf-8');
+
 // Increase timeout for AI operations
 const server = require('http').createServer(app);
 server.timeout = SERVER_TIMEOUT; // Server timeout from configuration
@@ -41,9 +44,22 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Body parsing middleware
-app.use(express.json({ limit: BODY_LIMIT }));
-app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
+// Body parsing middleware with UTF-8 encoding
+app.use(express.json({ 
+  limit: BODY_LIMIT,
+  charset: 'utf-8'
+}));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: BODY_LIMIT,
+  charset: 'utf-8'
+}));
+
+// Set UTF-8 encoding for all responses
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
 
 // Static files (for uploaded images)
 app.use('/uploads', express.static('uploads'));

@@ -447,8 +447,11 @@ function createStyledContentList(items) {
       });
     }
 
-    // Sanitize content
-    const sanitizedContent = item.content.replace(/[^\w\s\-\.]/g, '').substring(0, 300);
+    // Preserve content with Portuguese characters and common punctuation
+    const sanitizedContent = item.content
+      .replace(/[^\w\s\-\.áàâãéèêíìîóòôõúùûçÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ,;:!?()]/g, '')
+      .substring(0, 300)
+      .trim();
     
     return new Paragraph({
       children: [
@@ -466,6 +469,21 @@ function createStyledContentList(items) {
 }
 
 /**
+ * Normalize text to preserve Portuguese characters
+ * @param {string} text - Text to normalize
+ * @returns {string} Normalized text
+ */
+function normalizeText(text) {
+  if (!text || typeof text !== 'string') return '';
+  
+  // Normalize Unicode characters and preserve Portuguese accents
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove combining diacritical marks
+    .normalize('NFC'); // Re-compose characters
+}
+
+/**
  * Parse markdown content into structured sections for template
  * @param {string} content - Markdown content
  * @returns {Array} Parsed sections with template categories
@@ -477,8 +495,8 @@ function parseMarkdownContent(content) {
     return [];
   }
 
-      const sections = [];
-    const lines = content.split('\n');
+  const sections = [];
+  const lines = content.split('\n');
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
