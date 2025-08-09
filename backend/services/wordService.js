@@ -19,47 +19,59 @@ async function generateWordDocument(data) {
 
     // Create document with styled template
     const doc = new Document({
+      styles: {
+        default: {
+          document: {
+            run: {
+              font: 'Calibri',
+              size: 22,
+              color: '1A1A1A'
+            },
+            paragraph: {
+              spacing: { after: 120 }
+            }
+          }
+        },
+        paragraphStyles: [
+          {
+            id: 'SectionHeading',
+            name: 'Section Heading',
+            basedOn: 'Normal',
+            next: 'Normal',
+            quickFormat: true,
+            run: { size: 26, bold: true, color: '000000' },
+            paragraph: { spacing: { before: 240, after: 80 } }
+          },
+          {
+            id: 'SmallMuted',
+            name: 'Small Muted',
+            basedOn: 'Normal',
+            next: 'Normal',
+            run: { size: 18, color: '666666', italics: true },
+            paragraph: { spacing: { after: 160 } }
+          }
+        ]
+      },
       sections: [{
-        properties: {},
+        properties: {
+          page: {
+            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+          }
+        },
         children: [
           // Header - Title with teal line above
           new Paragraph({
-            children: [
-              new TextRun({
-                text: "─".repeat(20),
-                size: 24,
-                color: "008080"
-              })
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: {
-              after: 100
-            }
-          }),
-
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "Notas de Lançamento",
-                size: 36,
-                bold: true,
-                color: "000000"
-              })
-            ],
-            alignment: AlignmentType.CENTER,
-            spacing: {
-              after: 200
-            }
+            children: [new TextRun({ text: '' })],
+            border: {
+              bottom: { color: '008080', size: 6, style: BorderStyle.SINGLE }
+            },
+            spacing: { after: 200 }
           }),
 
           // Product Name | Company
           new Paragraph({
             children: [
-              new TextRun({
-                text: `${title} | PhosDocs`,
-                size: 20,
-                color: "0563C1"
-              })
+              new TextRun({ text: `${title}`, size: 36, color: "0563C1" })
             ],
             alignment: AlignmentType.CENTER,
             spacing: {
@@ -175,29 +187,10 @@ async function generateWordDocument(data) {
           // New Features Section
           ...(sections.filter(s => s.type === 'feature').length > 0 ? [
             new Paragraph({
-              children: [
-                new TextRun({
-                  text: "Novas Funcionalidades",
-                  size: 24,
-                  bold: true,
-                  color: "000000"
-                })
-              ],
-              spacing: {
-                after: 100
-              }
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: "─".repeat(30),
-                  size: 20,
-                  color: "008080"
-                })
-              ],
-              spacing: {
-                after: 100
-              }
+              text: 'Novas Funcionalidades',
+              style: 'SectionHeading',
+              border: { bottom: { color: '5BC0BE', size: 6, style: BorderStyle.SINGLE } },
+              spacing: { after: 120 }
             }),
             ...createStyledContentList(sections.filter(s => s.type === 'feature'))
           ] : []),
@@ -205,29 +198,10 @@ async function generateWordDocument(data) {
           // Bug Fixes Section
           ...(sections.filter(s => s.type === 'bugfix').length > 0 ? [
             new Paragraph({
-              children: [
-                new TextRun({
-                  text: "Correções de Erros",
-                  size: 24,
-                  bold: true,
-                  color: "000000"
-                })
-              ],
-              spacing: {
-                after: 100
-              }
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: "─".repeat(30),
-                  size: 20,
-                  color: "008080"
-                })
-              ],
-              spacing: {
-                after: 100
-              }
+              text: 'Correções de Erros',
+              style: 'SectionHeading',
+              border: { bottom: { color: '5BC0BE', size: 6, style: BorderStyle.SINGLE } },
+              spacing: { after: 120 }
             }),
             ...createStyledContentList(sections.filter(s => s.type === 'bugfix'))
           ] : []),
@@ -235,29 +209,10 @@ async function generateWordDocument(data) {
           // Performance Improvements Section
           ...(sections.filter(s => s.type === 'performance').length > 0 ? [
             new Paragraph({
-              children: [
-                new TextRun({
-                  text: "Melhorias de Desempenho",
-                  size: 24,
-                  bold: true,
-                  color: "000000"
-                })
-              ],
-              spacing: {
-                after: 100
-              }
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: "─".repeat(30),
-                  size: 20,
-                  color: "008080"
-                })
-              ],
-              spacing: {
-                after: 100
-              }
+              text: 'Melhorias de Desempenho',
+              style: 'SectionHeading',
+              border: { bottom: { color: '5BC0BE', size: 6, style: BorderStyle.SINGLE } },
+              spacing: { after: 120 }
             }),
             ...createStyledContentList(sections.filter(s => s.type === 'performance'))
           ] : []),
@@ -265,29 +220,10 @@ async function generateWordDocument(data) {
           // Security Updates Section
           ...(sections.filter(s => s.type === 'security').length > 0 ? [
             new Paragraph({
-              children: [
-                new TextRun({
-                  text: "Atualizações de Segurança",
-                  size: 24,
-                  bold: true,
-                  color: "000000"
-                })
-              ],
-              spacing: {
-                after: 100
-              }
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: "─".repeat(30),
-                  size: 20,
-                  color: "008080"
-                })
-              ],
-              spacing: {
-                after: 100
-              }
+              text: 'Atualizações de Segurança',
+              style: 'SectionHeading',
+              border: { bottom: { color: '5BC0BE', size: 6, style: BorderStyle.SINGLE } },
+              spacing: { after: 120 }
             }),
             ...createStyledContentList(sections.filter(s => s.type === 'security'))
           ] : []),
@@ -295,29 +231,10 @@ async function generateWordDocument(data) {
           // Additional Resources Section
           ...(sections.filter(s => s.type === 'resource').length > 0 ? [
             new Paragraph({
-              children: [
-                new TextRun({
-                  text: "Recursos Adicionais",
-                  size: 24,
-                  bold: true,
-                  color: "000000"
-                })
-              ],
-              spacing: {
-                after: 100
-              }
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: "─".repeat(30),
-                  size: 20,
-                  color: "008080"
-                })
-              ],
-              spacing: {
-                after: 100
-              }
+              text: 'Recursos Adicionais',
+              style: 'SectionHeading',
+              border: { bottom: { color: '5BC0BE', size: 6, style: BorderStyle.SINGLE } },
+              spacing: { after: 120 }
             }),
             ...createStyledContentList(sections.filter(s => s.type === 'resource'))
           ] : [])
@@ -450,20 +367,13 @@ function createStyledContentList(items) {
     // Preserve content with Portuguese characters and common punctuation
     const sanitizedContent = item.content
       .replace(/[^\w\s\-\.áàâãéèêíìîóòôõúùûçÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ,;:!?()]/g, '')
-      .substring(0, 300)
       .trim();
     
     return new Paragraph({
-      children: [
-        new TextRun({
-          text: `• ${sanitizedContent}`,
-          size: 16,
-          color: "000000"
-        })
-      ],
-      spacing: {
-        after: 100
-      }
+      text: sanitizedContent,
+      bullet: { level: 0 },
+      spacing: { before: 40, after: 40 },
+      indentation: { left: 720, hanging: 360 }
     });
   });
 }

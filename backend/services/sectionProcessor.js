@@ -124,7 +124,15 @@ async function processAllSections(data) {
     for (const section of sections) {
       if (section.type && section.content) {
         const processedSection = await processSection(section.type, section.content, title);
-        results.push(processedSection);
+        const lines = processedSection
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0);
+
+        for (const line of lines) {
+          const cleanedLine = line.replace(/^\s*\[[^\]]+\]\s*/i, '').trim();
+          results.push(`[${section.type}] ${cleanedLine}`);
+        }
       }
     }
     
@@ -132,11 +140,18 @@ async function processAllSections(data) {
     if (results.length === 0) {
       console.log('Nenhuma seção encontrada, processando conteúdo completo...');
       const processedContent = await processSection('funcionalidade', description, title);
-      results.push(processedContent);
+      const lines = processedContent
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0);
+      for (const line of lines) {
+        const cleanedLine = line.replace(/^\s*\[[^\]]+\]\s*/i, '').trim();
+        results.push(`[funcionalidade] ${cleanedLine}`);
+      }
     }
     
     // Concatenate all sections
-    const finalContent = results.join('\n\n');
+    const finalContent = results.join('\n');
     
     console.log(`Processamento concluído. ${results.length} seções geradas.`);
     return finalContent;
@@ -165,15 +180,18 @@ function extractSectionsFromContent(content) {
     const sectionMatch = trimmedLine.match(/^\[(funcionalidade|bug|performance|segurança|recurso)\]\s*(.*)/i);
     
     if (sectionMatch) {
-      // Save previous section if exists
+      // Save previous section if exists, combining title line + accumulated description
       if (currentSection) {
-        sections.push(currentSection);
+        const combinedContent = [currentSection.content, currentSection.description]
+          .filter(Boolean)
+          .join(currentSection.content && currentSection.description ? '\n' : '');
+        sections.push({ type: currentSection.type, content: combinedContent });
       }
       
       // Start new section
       currentSection = {
         type: sectionMatch[1].toLowerCase(),
-        content: sectionMatch[2] || '',
+        content: (sectionMatch[2] || '').trim(),
         description: ''
       };
     } else if (currentSection) {
@@ -186,10 +204,12 @@ function extractSectionsFromContent(content) {
     }
   }
   
-  // Add last section
+  // Add last section combining title line + accumulated description
   if (currentSection) {
-    currentSection.content = currentSection.description || currentSection.content;
-    sections.push(currentSection);
+    const combinedContent = [currentSection.content, currentSection.description]
+      .filter(Boolean)
+      .join(currentSection.content && currentSection.description ? '\n' : '');
+    sections.push({ type: currentSection.type, content: combinedContent });
   }
   
   return sections;
