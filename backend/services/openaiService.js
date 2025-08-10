@@ -32,21 +32,21 @@ function validateInput(data) {
   const { title, description, images } = data;
   const errors = [];
 
-  if (!title || title.trim().length === 0) {
-    errors.push('Título é obrigatório');
-  }
+      if (!title || title.trim().length === 0) {
+      errors.push('Title is required');
+    }
 
-  if (!description || description.trim().length === 0) {
-    errors.push('Descrição é obrigatória');
-  }
+    if (!description || description.trim().length === 0) {
+      errors.push('Description is required');
+    }
 
-  if (description && description.length > MAX_DESCRIPTION_LENGTH) {
-    errors.push(`Descrição muito longa. Máximo ${MAX_DESCRIPTION_LENGTH} caracteres.`);
-  }
+    if (description && description.length > MAX_DESCRIPTION_LENGTH) {
+      errors.push(`Description too long. Maximum ${MAX_DESCRIPTION_LENGTH} characters.`);
+    }
 
-  if (images && images.length > MAX_IMAGES) {
-    errors.push(`Máximo ${MAX_IMAGES} imagens permitidas.`);
-  }
+    if (images && images.length > MAX_IMAGES) {
+      errors.push(`Maximum ${MAX_IMAGES} images allowed.`);
+    }
 
   return {
     isValid: errors.length === 0,
@@ -67,12 +67,12 @@ async function generateDocumentation(data) {
     // Validate input first
     const validation = validateInput(data);
     if (!validation.isValid) {
-      throw new Error(`Validação falhou: ${validation.errors.join(', ')}`);
+      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
 
     const { title, description, images } = data;
 
-    console.log('🔄 Iniciando processamento por seções individuais...');
+    console.log('🔄 Starting individual section processing...');
 
     // Use the new section processor instead of single prompt
     const generatedText = await processAllSections(data);
@@ -88,12 +88,12 @@ async function generateDocumentation(data) {
       characterCount: generatedText.length
     };
 
-    console.log(`✅ Documentação gerada com sucesso usando processamento por seções`);
+    console.log(`✅ Documentation generated successfully using section processing`);
     return documentation;
 
   } catch (error) {
-    console.error('Erro no processamento de seções:', error);
-    throw new Error(`Falha na geração de documentação: ${error.message}`);
+    console.error('Error in section processing:', error);
+    throw new Error(`Documentation generation failed: ${error.message}`);
   }
 }
 
@@ -107,12 +107,12 @@ async function generateImageCaption(imageDescription) {
     let lastError;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        console.log(`Tentativa ${attempt} de ${MAX_RETRIES} para gerar legenda`);
+        console.log(`Attempt ${attempt} of ${MAX_RETRIES} to generate caption`);
 
         const imageCaptionPrompt = process.env.IMAGE_CAPTION_PROMPT;
         
         if (!imageCaptionPrompt) {
-          throw new Error('IMAGE_CAPTION_PROMPT não está configurado no arquivo .env');
+          throw new Error('IMAGE_CAPTION_PROMPT is not configured in the .env file');
         }
 
         const completion = await openRouter.chat.completions.create({
@@ -120,41 +120,41 @@ async function generateImageCaption(imageDescription) {
           messages: [
             {
               role: 'system',
-              content: 'Você é um assistente especializado em criar legendas descritivas para imagens técnicas.'
+              content: process.env.IMAGE_CAPTION_PROMPT
             },
             {
               role: 'user',
               content: imageCaptionPrompt.replace('{DESCRIPTION}', imageDescription)
             }
           ],
-          max_tokens: 100,
-          temperature: 0.5,
+          max_tokens: process.env.SECTION_MAX_TOKENS,
+          temperature: process.env.SECTION_TEMPERATURE,
           timeout: IMAGE_CAPTION_TIMEOUT,
         });
 
         const caption = completion.choices[0].message.content.trim();
-        console.log(`Legenda gerada com sucesso na tentativa ${attempt}`);
+        console.log(`Caption generated successfully on attempt ${attempt}`);
         return caption;
 
       } catch (error) {
         lastError = error;
-        console.error(`Tentativa ${attempt} falhou:`, error.message);
+        console.error(`Attempt ${attempt} failed:`, error.message);
 
         if (attempt < MAX_RETRIES) {
-          console.log(`Aguardando ${RETRY_DELAY}ms antes da próxima tentativa...`);
+          console.log(`Waiting ${RETRY_DELAY}ms before next attempt...`);
           await sleep(RETRY_DELAY);
         }
       }
     }
 
     // If all retries failed, return a fallback caption
-    console.error('Todas as tentativas de gerar legenda falharam, usando legenda padrão');
-    return `Imagem técnica - ${imageDescription}`;
+    console.error('All caption generation attempts failed, using default caption');
+    return `Technical image - ${imageDescription}`;
 
   } catch (error) {
     console.error('Image caption generation error:', error);
     // Return a fallback caption if API fails
-    return `Imagem técnica - ${imageDescription}`;
+    return `Technical image - ${imageDescription}`;
   }
 }
 

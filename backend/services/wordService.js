@@ -17,6 +17,13 @@ async function generateWordDocument(data) {
     // Parse markdown content into structured sections
     const sections = parseMarkdownContent(content);
 
+    // Log section counts for debugging
+    const sectionCounts = sections.reduce((acc, section) => {
+      acc[section.type] = (acc[section.type] || 0) + 1;
+      return acc;
+    }, {});
+    console.log('📊 Section counts:', sectionCounts);
+
     // Create document with styled template
     const doc = new Document({
       styles: {
@@ -80,10 +87,12 @@ async function generateWordDocument(data) {
           }),
 
           // Version and Date Table
+          // Note: Using WidthType.DXA instead of WidthType.PERCENTAGE because the % symbol 
+          // doesn't render properly in some Word processors due to UTF-8 encoding issues
           new Table({
             width: {
-              size: 100,
-              type: WidthType.PERCENTAGE,
+              size: 9000, // Full width in twips (1 inch = 1440 twips, so 10 inches = 14400)
+              type: WidthType.DXA,
             },
             rows: [
               new TableRow({
@@ -102,8 +111,8 @@ async function generateWordDocument(data) {
                       })
                     ],
                     width: {
-                      size: 50,
-                      type: WidthType.PERCENTAGE,
+                      size: 7200, // 50% of 14400 twips (1 inch)
+                      type: WidthType.DXA,
                     },
                     shading: {
                       fill: "E6F3FF"
@@ -121,8 +130,8 @@ async function generateWordDocument(data) {
                       })
                     ],
                     width: {
-                      size: 50,
-                      type: WidthType.PERCENTAGE,
+                      size: 7200, // 50% of 14400 twips (1 inch)
+                      type: WidthType.DXA,
                     }
                   })
                 ]
@@ -143,8 +152,8 @@ async function generateWordDocument(data) {
                       })
                     ],
                     width: {
-                      size: 50,
-                      type: WidthType.PERCENTAGE,
+                      size: 7200, // 50% of 14400 twips (1 inch)
+                      type: WidthType.DXA,
                     },
                     shading: {
                       fill: "E6F3FF"
@@ -162,8 +171,8 @@ async function generateWordDocument(data) {
                       })
                     ],
                     width: {
-                      size: 50,
-                      type: WidthType.PERCENTAGE,
+                      size: 7200, // 50% of 14400 twips (1 inch)
+                      type: WidthType.DXA,
                     }
                   })
                 ]
@@ -180,7 +189,7 @@ async function generateWordDocument(data) {
               })
             ],
             spacing: {
-              after: 300
+              after: 500
             }
           }),
 
@@ -215,6 +224,17 @@ async function generateWordDocument(data) {
               spacing: { after: 120 }
             }),
             ...createStyledContentList(sections.filter(s => s.type === 'performance'))
+          ] : []),
+
+          // General Enhancements Section
+          ...(sections.filter(s => s.type === 'enhancement').length > 0 ? [
+            new Paragraph({
+              text: 'Melhorias Gerais',
+              style: 'SectionHeading',
+              border: { bottom: { color: '5BC0BE', size: 6, style: BorderStyle.SINGLE } },
+              spacing: { after: 120 }
+            }),
+            ...createStyledContentList(sections.filter(s => s.type === 'enhancement'))
           ] : []),
 
           // Security Updates Section
@@ -366,7 +386,7 @@ function createStyledContentList(items) {
 
     // Preserve content with Portuguese characters and common punctuation
     const sanitizedContent = item.content
-      .replace(/[^\w\s\-\.áàâãéèêíìîóòôõúùûçÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ,;:!?()]/g, '')
+      .replace(/[^\w\s\-\.áàâãéèêíìîóòôõúùûçÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ,;:!?()%]/g, '')
       .trim();
     
     return new Paragraph({
@@ -405,6 +425,8 @@ function parseMarkdownContent(content) {
     return [];
   }
 
+  console.log('🔍 Parsing markdown content:', content.substring(0, 200) + '...');
+  
   const sections = [];
   const lines = content.split('\n');
 
@@ -450,7 +472,7 @@ function parseMarkdownContent(content) {
         type: 'feature',
         content: line
       });
-    } else if (lowerLine.includes('melhorado') || lowerLine.includes('enhanced') || lowerLine.includes('otimizado') || lowerLine.includes('upgraded')) {
+    } else if (lowerLine.includes('melhorado') || lowerLine.includes('enhanced') || lowerLine.includes('otimizado') || lowerLine.includes('upgraded') || lowerLine.includes('melhoria') || lowerLine.includes('improvement') || lowerLine.includes('redução') || lowerLine.includes('reduction')) {
       sections.push({
         type: 'enhancement',
         content: line
@@ -460,7 +482,7 @@ function parseMarkdownContent(content) {
         type: 'bugfix',
         content: line
       });
-    } else if (lowerLine.includes('performance') || lowerLine.includes('velocidade') || lowerLine.includes('speed') || lowerLine.includes('tempo')) {
+    } else if (lowerLine.includes('performance') || lowerLine.includes('velocidade') || lowerLine.includes('speed') || lowerLine.includes('tempo') || lowerLine.includes('redução') || lowerLine.includes('reduction') || lowerLine.includes('carregamento') || lowerLine.includes('loading') || lowerLine.includes('otimização') || lowerLine.includes('optimization')) {
       sections.push({
         type: 'performance',
         content: line
@@ -494,6 +516,8 @@ function parseMarkdownContent(content) {
     }
   }
 
+  console.log('📋 Parsed sections:', sections.map(s => ({ type: s.type, content: s.content.substring(0, 50) + '...' })));
+  
   return sections;
 }
 
