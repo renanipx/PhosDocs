@@ -1,4 +1,4 @@
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat, Hyperlink, Table, TableRow, TableCell, WidthType, BorderStyle } = require('docx');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat, Hyperlink, Table, TableRow, TableCell, WidthType, BorderStyle, ImageRun, Header } = require('docx');
 const fs = require('fs-extra');
 const path = require('path');
 
@@ -12,7 +12,7 @@ const path = require('path');
  */
 async function generateWordDocument(data) {
   try {
-    const { title, content, images } = data;
+    const { title, content, images, author, logo } = data;
 
     // Parse markdown content into structured sections
     const sections = parseMarkdownContent(content);
@@ -23,6 +23,58 @@ async function generateWordDocument(data) {
       return acc;
     }, {});
     console.log('📊 Section counts:', sectionCounts);
+
+    // Process logo image if provided
+    let logoImageBuffer = null;
+    console.log('Logo received:', logo ? 'Yes (string or path)' : 'No');
+    if (logo) {
+      try {
+        // Check if logo is a base64 string
+        if (typeof logo === 'string' && logo.startsWith('data:image')) {
+          // Extract base64 data from data URL
+          const base64Data = logo.split(',')[1];
+          logoImageBuffer = Buffer.from(base64Data, 'base64');
+          console.log('Logo processed from base64, buffer size:', logoImageBuffer.length);
+        } else {
+          // Assume it's a file path
+          console.log('Attempting to read logo file from path:', logo);
+          logoImageBuffer = await fs.readFile(logo);
+          console.log('Logo file read successfully, buffer size:', logoImageBuffer.length);
+        }
+      } catch (e) {
+        console.warn('Could not process logo:', e.message);
+      }
+    } else {
+      console.log('No logo provided, proceeding with empty header');
+    }
+
+    // Header paragraph logic
+    // Criar um parágrafo simples para o cabeçalho
+    let headerParagraph;
+    
+    if (logoImageBuffer) {
+      headerParagraph = new Paragraph({
+        children: [
+          new ImageRun({
+            data: logoImageBuffer,
+            transformation: { width: 120, height: 60 },
+          })
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 200 }
+      });
+    } else {
+      // Criar um parágrafo com texto vazio quando não há logo
+      headerParagraph = new Paragraph({
+        children: [
+          new TextRun({ text: '' })
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 200 }
+      });
+    }
+    
+    console.log('Header paragraph created with', headerParagraph.root.rootKey, 'type');
 
     // Create document with styled template
     const doc = new Document({
@@ -65,8 +117,13 @@ async function generateWordDocument(data) {
             margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
           }
         },
+        headers: {
+          default: new Header({
+            children: [headerParagraph],
+          }),
+        },
         children: [
-          // Header - Title with teal line above
+          // Header - Title with teal line above (logo is now in header)
           new Paragraph({
             children: [new TextRun({ text: '' })],
             border: {
@@ -86,9 +143,7 @@ async function generateWordDocument(data) {
             }
           }),
 
-          // Version and Date Table
-          // Note: Using WidthType.DXA instead of WidthType.PERCENTAGE because the % symbol 
-          // doesn't render properly in some Word processors due to UTF-8 encoding issues
+          // Version, Date, Author Table
           new Table({
             width: {
               size: 9000, // Full width in twips (1 inch = 1440 twips, so 10 inches = 14400)
@@ -176,8 +231,49 @@ async function generateWordDocument(data) {
                     }
                   })
                 ]
-              })
-            ]
+              }),
+              author ? new TableRow({
+                children: [
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "Autor:",
+                            size: 16,
+                            bold: true,
+                            color: "0563C1"
+                          })
+                        ]
+                      })
+                    ],
+                    width: {
+                      size: 7200, // 50% of 14400 twips (1 inch)
+                      type: WidthType.DXA,
+                    },
+                    shading: {
+                      fill: "E6F3FF"
+                    }
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: author,
+                            size: 16
+                          })
+                        ]
+                      })
+                    ],
+                    width: {
+                      size: 7200, // 50% of 14400 twips (1 inch)
+                      type: WidthType.DXA,
+                    }
+                  })
+                ]
+              }) : null
+            ].filter(Boolean)
           }),
 
           // Spacing after table
@@ -266,7 +362,14 @@ async function generateWordDocument(data) {
     try {
       console.log('📝 Document structure created, generating buffer...');
       
-      const buffer = await Packer.toBuffer(doc);
+      // Usar o formato Blob para garantir a integridade do documento
+      const buffer = await Packer.toBuffer(doc, {
+        // Configurações adicionais para garantir compatibilidade
+        compatibility: {
+          doNotUseSpecialCharacters: true,
+          doNotUseStyles: false
+        }
+      });
       
       // Validate buffer
       if (!buffer || buffer.length === 0) {
@@ -533,7 +636,18 @@ async function saveWordDocument(buffer, filename) {
     await fs.ensureDir(uploadsDir);
     
     const filePath = path.join(uploadsDir, filename);
-    await fs.writeFile(filePath, buffer);
+    
+    // Usar writeFileSync para garantir que o arquivo seja escrito completamente
+    // antes de retornar o caminho
+    fs.writeFileSync(filePath, buffer, { encoding: null });
+    
+    // Verificar se o arquivo foi criado corretamente
+    if (!fs.existsSync(filePath)) {
+      throw new Error('File was not created properly');
+    }
+    
+    const stats = fs.statSync(filePath);
+    console.log(`File saved successfully. Size on disk: ${stats.size} bytes`);
     
     return filePath;
   } catch (error) {
@@ -545,4 +659,4 @@ async function saveWordDocument(buffer, filename) {
 module.exports = {
   generateWordDocument,
   saveWordDocument
-}; 
+};

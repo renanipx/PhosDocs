@@ -5,6 +5,17 @@ const { generateWordDocument, saveWordDocument } = require('../services/wordServ
 const { uploadImage } = require('../services/imageService');
 const path = require('path');
 const fs = require('fs-extra');
+const multer = require('multer');
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + '.' + file.originalname.split('.').pop());
+  }
+});
+const upload = multer({ storage });
 
 // POST /api/documentation/generate
 // Receives form data and generates documentation
@@ -72,73 +83,76 @@ router.post('/generate', async (req, res) => {
 
 // POST /api/documentation/download-word
 // Generate and download Word document
-router.post('/download-word', async (req, res) => {
+router.post('/download-word', upload.single('logo'), async (req, res) => {
   try {
-    const { title, content } = req.body;
-
+    // Accept both JSON and multipart/form-data
+    let title, content, author;
+    if (req.is('multipart/form-data')) {
+      title = req.body.title;
+      content = req.body.content;
+      author = req.body.author;
+    } else {
+      ({ title, content, author } = req.body);
+    }
     if (!title || !content) {
-      return res.status(400).json({
-        error: 'Title and content are required'
-      });
+      return res.status(400).json({ error: 'Title and content are required' });
     }
-
-    // Validate content is not empty
     if (typeof content !== 'string' || content.trim().length === 0) {
-      return res.status(400).json({
-        error: 'Content cannot be empty'
+      return res.status(400).json({ error: 'Content cannot be empty' });
+    }
+    let logo = null;
+    // Verificar se temos um arquivo de logo enviado via multipart/form-data
+    if (req.file) {
+      logo = req.file.path;
+      console.log('DEBUG logo upload (arquivo):', {
+        file: req.file,
+        logoPath: logo,
+        exists: logo ? require('fs').existsSync(logo) : false
+      });
+    } 
+    // Verificar se temos uma string base64 enviada via JSON
+    else if (req.body.logoBase64) {
+      logo = req.body.logoBase64;
+      console.log('DEBUG logo upload (base64):', {
+        hasBase64: !!logo,
+        base64Length: logo ? logo.length : 0
       });
     }
-
+    
     const buffer = await generateWordDocument({
       title,
       content,
-      images: []
+      images: [],
+      author,
+      logo: logo
     });
-
-    // Validate buffer
     if (!buffer || buffer.length === 0) {
       console.error('Generated buffer is empty or invalid');
-      return res.status(500).json({
-        error: 'Generated Word document is empty or invalid'
-      });
+      return res.status(500).json({ error: 'Generated Word document is empty or invalid' });
     }
-
-    // Ensure buffer is a valid Buffer
     if (!Buffer.isBuffer(buffer)) {
       console.error('Generated buffer is not a valid Buffer');
-      return res.status(500).json({
-        error: 'Generated Word document buffer is invalid'
-      });
+      return res.status(500).json({ error: 'Generated Word document buffer is invalid' });
     }
-
-    console.log(`Word document generated successfully. Buffer size: ${buffer.length} bytes`);
-    console.log(`Buffer type: ${typeof buffer}, is Buffer: ${Buffer.isBuffer(buffer)}`);
-
-    // Create filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.docx`;
-
-    // Save file
     const filePath = await saveWordDocument(buffer, filename);
-
-    // Set proper headers for Word document with UTF-8 encoding
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', buffer.length);
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
     
-    // Send buffer as binary data
-    res.write(buffer);
-    res.end();
-
+    // Usar o método download do Express para enviar o arquivo
+    // Este método é mais adequado para download de arquivos e lida melhor com arquivos binários
+    return res.download(filePath, filename, {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Length': buffer.length,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Content-Type-Options': 'nosniff'
+      }
+    });
   } catch (error) {
     console.error('Word download error:', error);
-    res.status(500).json({
-      error: 'Failed to generate Word document',
-      details: error.message
-    });
+    res.status(500).json({ error: 'Failed to generate Word document', details: error.message });
   }
 });
 
@@ -209,4 +223,4 @@ router.get('/', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

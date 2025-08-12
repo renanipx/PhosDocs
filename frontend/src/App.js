@@ -15,7 +15,10 @@ function App() {
 [segurança] Atualização de segurança
 [recurso] Manual atualizado`,
     images: [],
-    imagePreviews: []
+    imagePreviews: [],
+    author: '',
+    logo: null,
+    logoPreview: null
   });
   const [doc, setDoc] = useState(null);
 
@@ -73,6 +76,18 @@ function App() {
     });
   };
 
+  // Add handleLogoChange
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setForm({
+        ...form,
+        logo: file,
+        logoPreview: URL.createObjectURL(file)
+      });
+    }
+  };
+
   // Validate form
   const validateForm = () => {
     const newErrors = {};
@@ -87,6 +102,10 @@ function App() {
       newErrors.description = 'Descrição deve ter pelo menos 20 caracteres';
     } else if (form.description.length > 5000) {
       newErrors.description = 'Descrição muito longa. Máximo 5000 caracteres para evitar timeouts.';
+    }
+
+    if (!form.author.trim()) {
+      newErrors.author = 'Autor é obrigatório';
     }
 
     if (form.images.length > 5) {
@@ -141,7 +160,16 @@ function App() {
         body: JSON.stringify({
           title,
           description,
-          images
+          images,
+          author: form.author,
+          logo: form.logo ? {
+            filename: form.logo.name,
+            base64: await new Promise(resolve => {
+              const reader = new FileReader();
+              reader.readAsDataURL(form.logo);
+              reader.onloadend = () => resolve(reader.result);
+            })
+          } : null
         })
       });
 
@@ -260,7 +288,18 @@ function App() {
     if (doc) {
       try {
         showNotification('Gerando documento Word...');
-
+        // Verificar se temos um logo para enviar
+        let logoBase64 = null;
+        if (form.logo) {
+          // Converter o logo para base64
+          logoBase64 = await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.readAsDataURL(form.logo);
+            reader.onloadend = () => resolve(reader.result);
+          });
+        }
+        
+        // Enviar dados como JSON com logo em base64
         const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/documentation/download-word`, {
           method: 'POST',
           headers: {
@@ -269,19 +308,17 @@ function App() {
           body: JSON.stringify({
             title: doc.title,
             content: doc.intro,
-            images: doc.images
+            author: form.author,
+            logoBase64: logoBase64
           })
         });
-
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-
         // Get filename from response headers
         const contentDisposition = response.headers.get('content-disposition');
         const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/);
         const filename = filenameMatch ? filenameMatch[1] : 'documentacao.docx';
-
         // Create blob and download
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -292,7 +329,6 @@ function App() {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-
         showNotification('Documento Word baixado com sucesso!');
       } catch (error) {
         console.error('Word download error:', error);
@@ -306,7 +342,18 @@ function App() {
     if (doc) {
       try {
         setPreviewLoading(true);
-
+        // Verificar se temos um logo para enviar
+        let logoBase64 = null;
+        if (form.logo) {
+          // Converter o logo para base64
+          logoBase64 = await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.readAsDataURL(form.logo);
+            reader.onloadend = () => resolve(reader.result);
+          });
+        }
+        
+        // Enviar dados como JSON com logo em base64
         const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/documentation/download-word`, {
           method: 'POST',
           headers: {
@@ -315,14 +362,13 @@ function App() {
           body: JSON.stringify({
             title: doc.title,
             content: doc.intro,
-            images: doc.images
+            author: form.author,
+            logoBase64: logoBase64
           })
         });
-
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         setPreviewUrl(url);
@@ -383,6 +429,53 @@ function App() {
                   placeholder="Descreva o processo ou tecnologia que você quer documentar"
                 />
                 {errors.description && <div className="error-message">{errors.description}</div>}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Autor</label>
+                <input
+                  name="author"
+                  value={form.author}
+                  onChange={handleChange}
+                  required
+                  className={`form-input ${errors.author ? 'form-input-error' : ''}`}
+                  placeholder="Digite o nome do autor"
+                />
+                {errors.author && <div className="error-message">{errors.author}</div>}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Logo (opcional)</label>
+                <div className="file-upload">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoChange}
+                    id="logo-upload"
+                  />
+                  <label htmlFor="logo-upload" className="file-upload-label">
+                    🖼️ Clique para selecionar o logo
+                  </label>
+                </div>
+                {form.logoPreview && (
+                  <div className="image-previews">
+                    <div className="image-preview-container">
+                      <img
+                        src={form.logoPreview}
+                        alt="Logo preview"
+                        className="image-preview"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, logo: null, logoPreview: null })}
+                        className="remove-image-btn"
+                        title="Remover logo"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="form-group">
