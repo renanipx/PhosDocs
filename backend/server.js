@@ -32,7 +32,7 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? [''] 
-    : ['http://localhost:3000'],
+    : ['http://localhost:3000', 'http://localhost:3001'],
   credentials: true
 }));
 
@@ -96,4 +96,4 @@ server.listen(PORT, () => {
   console.log(`📝 Environment: ${process.env.NODE_ENV}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
   console.log(`⏱️  Server timeout: ${SERVER_TIMEOUT / 1000} seconds`);
-}); 
+});

@@ -1,6 +1,7 @@
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat, Hyperlink, Table, TableRow, TableCell, WidthType, BorderStyle, ImageRun, Header } = require('docx');
 const fs = require('fs-extra');
 const path = require('path');
+const sizeOf = require('image-size').default || require('image-size');
 
 /**
  * Generate Word document with fixed template style
@@ -35,11 +36,14 @@ async function generateWordDocument(data) {
           const base64Data = logo.split(',')[1];
           logoImageBuffer = Buffer.from(base64Data, 'base64');
           console.log('Logo processed from base64, buffer size:', logoImageBuffer.length);
-        } else {
+        } else if (typeof logo === 'string') {
           // Assume it's a file path
           console.log('Attempting to read logo file from path:', logo);
           logoImageBuffer = await fs.readFile(logo);
           console.log('Logo file read successfully, buffer size:', logoImageBuffer.length);
+        } else {
+          // Invalid logo type
+          throw new Error('Logo must be a base64 string or file path.');
         }
       } catch (e) {
         console.warn('Could not process logo:', e.message);
@@ -53,11 +57,14 @@ async function generateWordDocument(data) {
     let headerParagraph;
     
     if (logoImageBuffer) {
+      const dimensions = sizeOf(logoImageBuffer);
+      const targetWidth = 120;
+      const targetHeight = Math.round(dimensions.height * (targetWidth / dimensions.width));
       headerParagraph = new Paragraph({
         children: [
           new ImageRun({
             data: logoImageBuffer,
-            transformation: { width: 120, height: 60 },
+            transformation: { width: targetWidth, height: targetHeight },
           })
         ],
         alignment: AlignmentType.CENTER,

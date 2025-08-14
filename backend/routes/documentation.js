@@ -53,16 +53,41 @@ router.post('/generate', async (req, res) => {
       }
     }
 
+    // Extract author from request body
+    const author = req.body.author;
+
     // Generate documentation using AI
     const documentation = await generateDocumentation({
       title,
       description,
-      images: processedImages
+      images: processedImages,
+      author
     });
+
+    // Handle logo from request (if present)
+    let logo = null;
+    if (req.body.logoBase64) {
+      logo = req.body.logoBase64;
+    } else if (req.body.logo) {
+      logo = req.body.logo;
+    }
+
+    // Generate Word document and filename
+    const buffer = await generateWordDocument({
+      title,
+      content: documentation.content,
+      images: processedImages,
+      author,
+      logo: logo || null
+    });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.docx`;
+    await saveWordDocument(buffer, filename);
 
     const response = {
       success: true,
       documentation,
+      filename,
       metadata: {
         title,
         generatedAt: new Date().toISOString(),
@@ -138,17 +163,15 @@ router.post('/download-word', upload.single('logo'), async (req, res) => {
     const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.docx`;
     const filePath = await saveWordDocument(buffer, filename);
     
-    // Usar o método download do Express para enviar o arquivo
-    // Este método é mais adequado para download de arquivos e lida melhor com arquivos binários
-    return res.download(filePath, filename, {
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Length': buffer.length,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'X-Content-Type-Options': 'nosniff'
-      }
+    // Retornar os dados da documentação e o nome do arquivo para download posterior
+    return res.status(200).json({
+      documentation: {
+        title,
+        content,
+        sections: [],
+        conclusion: ''
+      },
+      filename: filename
     });
   } catch (error) {
     console.error('Word download error:', error);
@@ -156,9 +179,9 @@ router.post('/download-word', upload.single('logo'), async (req, res) => {
   }
 });
 
-// GET /api/documentation/preview/:filename
-// Get Word document for preview
-router.get('/preview/:filename', async (req, res) => {
+// GET /api/documentation/download/:filename
+// Download Word document
+router.get('/download/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
     const filePath = path.join(__dirname, '../uploads', filename);
@@ -169,10 +192,16 @@ router.get('/preview/:filename', async (req, res) => {
       });
     }
 
-    // Send file for preview
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', 'inline');
-    res.sendFile(filePath);
+    // Enviar arquivo para download
+    return res.download(filePath, filename, {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Content-Type-Options': 'nosniff'
+      }
+    });
 
   } catch (error) {
     console.error('Preview error:', error);
