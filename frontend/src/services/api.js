@@ -37,16 +37,22 @@ export const uploadImages = async (files) => {
 export const generateDocumentation = async (title, description, images, author, logo) => {
   try {
     let logoData = null;
-    
     if (logo) {
-      logoData = {
-        filename: logo.name,
-        base64: await new Promise(resolve => {
-          const reader = new FileReader();
-          reader.readAsDataURL(logo);
-          reader.onloadend = () => resolve(reader.result);
-        })
-      };
+      if (logo instanceof Blob || logo instanceof File) {
+        logoData = {
+          filename: logo.name,
+          base64: await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.readAsDataURL(logo);
+            reader.onloadend = () => resolve(reader.result);
+          })
+        };
+      } else if (typeof logo === 'string' && logo.startsWith('data:image')) {
+        logoData = {
+          filename: 'logo.png',
+          base64: logo
+        };
+      }
     }
     
     const response = await fetch(`${API_BASE_URL}/documentation/generate`, {

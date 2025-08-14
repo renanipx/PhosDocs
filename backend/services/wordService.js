@@ -1,7 +1,7 @@
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, LevelFormat, Hyperlink, Table, TableRow, TableCell, WidthType, BorderStyle, ImageRun, Header } = require('docx');
 const fs = require('fs-extra');
 const path = require('path');
-const sizeOf = require('image-size').default || require('image-size');
+const createHeaderWithLogo = require("./createHeaderWithLogo");
 
 /**
  * Generate Word document with fixed template style
@@ -30,20 +30,37 @@ async function generateWordDocument(data) {
     console.log('Logo received:', logo ? 'Yes (string or path)' : 'No');
     if (logo) {
       try {
-        // Check if logo is a base64 string
         if (typeof logo === 'string' && logo.startsWith('data:image')) {
-          // Extract base64 data from data URL
-          const base64Data = logo.split(',')[1];
-          logoImageBuffer = Buffer.from(base64Data, 'base64');
-          console.log('Logo processed from base64, buffer size:', logoImageBuffer.length);
+          // Verifica se é um tipo de imagem válido
+          const mimeMatch = logo.match(/^data:(image\/(png|jpeg|jpg));base64,/);
+          if (!mimeMatch) {
+            throw new Error('Tipo de imagem inválido. Use PNG ou JPEG');
+          }
+          // Logo já está no formato base64 data URL
+          logoImageBuffer = logo;
+          console.log('Logo is already in base64 data URL format');
         } else if (typeof logo === 'string') {
           // Assume it's a file path
           console.log('Attempting to read logo file from path:', logo);
-          logoImageBuffer = await fs.readFile(logo);
-          console.log('Logo file read successfully, buffer size:', logoImageBuffer.length);
+          const fileBuffer = await fs.readFile(logo);
+          // Detecta o tipo MIME baseado no conteúdo do arquivo
+          const dimensions = sizeOf(fileBuffer);
+          if (!dimensions || !['png', 'jpg', 'jpeg'].includes(dimensions.type)) {
+            throw new Error('Tipo de arquivo inválido. Use PNG ou JPEG');
+          }
+          const mimeType = `image/${dimensions.type}`;
+          logoImageBuffer = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+          console.log('Logo file converted to base64 data URL with type:', mimeType);
+        } else if (typeof logo === 'object' && logo.base64 && typeof logo.base64 === 'string') {
+          // Logo object from frontend
+          const mimeMatch = logo.base64.match(/^data:(image\/(png|jpeg|jpg));base64,/);
+          if (!mimeMatch) {
+            throw new Error('Tipo de imagem inválido no objeto. Use PNG ou JPEG');
+          }
+          logoImageBuffer = logo.base64;
+          console.log('Logo from object validated and ready to use');
         } else {
-          // Invalid logo type
-          throw new Error('Logo must be a base64 string or file path.');
+          throw new Error('Logo must be a base64 string, file path, or object with base64 property. Received type: ' + typeof logo);
         }
       } catch (e) {
         console.warn('Could not process logo:', e.message);
@@ -53,33 +70,7 @@ async function generateWordDocument(data) {
     }
 
     // Header paragraph logic
-    // Criar um parágrafo simples para o cabeçalho
-    let headerParagraph;
-    
-    if (logoImageBuffer) {
-      const dimensions = sizeOf(logoImageBuffer);
-      const targetWidth = 120;
-      const targetHeight = Math.round(dimensions.height * (targetWidth / dimensions.width));
-      headerParagraph = new Paragraph({
-        children: [
-          new ImageRun({
-            data: logoImageBuffer,
-            transformation: { width: targetWidth, height: targetHeight },
-          })
-        ],
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 200 }
-      });
-    } else {
-      // Criar um parágrafo com texto vazio quando não há logo
-      headerParagraph = new Paragraph({
-        children: [
-          new TextRun({ text: '' })
-        ],
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 200 }
-      });
-    }
+    let headerParagraph = createHeaderWithLogo(logoImageBuffer);
     
     console.log('Header paragraph created with', headerParagraph.root.rootKey, 'type');
 
@@ -370,14 +361,7 @@ async function generateWordDocument(data) {
       console.log('📝 Document structure created, generating buffer...');
       
       // Usar o formato Blob para garantir a integridade do documento
-      const buffer = await Packer.toBuffer(doc, {
-        // Configurações adicionais para garantir compatibilidade
-        compatibility: {
-          doNotUseSpecialCharacters: true,
-          doNotUseStyles: false
-        }
-      });
-      
+      const buffer = await Packer.toBuffer(doc);
       // Validate buffer
       if (!buffer || buffer.length === 0) {
         throw new Error('Generated buffer is empty or invalid');

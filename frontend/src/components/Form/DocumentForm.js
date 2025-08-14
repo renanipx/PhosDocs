@@ -67,7 +67,7 @@ const DocumentForm = ({
           id="logo"
           name="logo"
           onChange={handleLogoChange}
-          accept="image/*"
+          accept="image/png,image/jpeg"
           className="file-input"
         />
         {form.logoPreview && (
