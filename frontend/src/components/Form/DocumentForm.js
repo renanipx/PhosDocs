@@ -74,9 +74,9 @@ const DocumentForm = ({
           <div className="logo-preview-container">
             <div className="logo-preview">
               <img src={form.logoPreview} alt="Logo preview" />
-              <button 
-                type="button" 
-                className="image-delete-button" 
+              <button
+                type="button"
+                className="image-delete-button"
                 onClick={handleRemoveLogo}
               >
                 <i className="fas fa-times"></i>
@@ -104,9 +104,9 @@ const DocumentForm = ({
             {form.imagePreviews.map((preview, index) => (
               <div key={index} className="image-preview">
                 <img src={preview} alt={`Preview ${index + 1}`} />
-                <button 
-                  type="button" 
-                  className="image-delete-button" 
+                <button
+                  type="button"
+                  className="image-delete-button"
                   onClick={() => handleRemoveImage(index)}
                 >
                   <i className="fas fa-times"></i>

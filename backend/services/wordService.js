@@ -31,34 +31,19 @@ async function generateWordDocument(data) {
     if (logo) {
       try {
         if (typeof logo === 'string' && logo.startsWith('data:image')) {
-          // Verifica se é um tipo de imagem válido
-          const mimeMatch = logo.match(/^data:(image\/(png|jpeg|jpg));base64,/);
-          if (!mimeMatch) {
-            throw new Error('Tipo de imagem inválido. Use PNG ou JPEG');
-          }
           // Logo já está no formato base64 data URL
-          logoImageBuffer = logo;
+          logoImageBuffer = logo; // Passa diretamente para createHeaderWithLogo
           console.log('Logo is already in base64 data URL format');
         } else if (typeof logo === 'string') {
           // Assume it's a file path
           console.log('Attempting to read logo file from path:', logo);
           const fileBuffer = await fs.readFile(logo);
-          // Detecta o tipo MIME baseado no conteúdo do arquivo
-          const dimensions = sizeOf(fileBuffer);
-          if (!dimensions || !['png', 'jpg', 'jpeg'].includes(dimensions.type)) {
-            throw new Error('Tipo de arquivo inválido. Use PNG ou JPEG');
-          }
-          const mimeType = `image/${dimensions.type}`;
-          logoImageBuffer = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
-          console.log('Logo file converted to base64 data URL with type:', mimeType);
+          logoImageBuffer = `data:image/png;base64,${fileBuffer.toString('base64')}`;
+          console.log('Logo file converted to base64 data URL');
         } else if (typeof logo === 'object' && logo.base64 && typeof logo.base64 === 'string') {
           // Logo object from frontend
-          const mimeMatch = logo.base64.match(/^data:(image\/(png|jpeg|jpg));base64,/);
-          if (!mimeMatch) {
-            throw new Error('Tipo de imagem inválido no objeto. Use PNG ou JPEG');
-          }
           logoImageBuffer = logo.base64;
-          console.log('Logo from object validated and ready to use');
+          console.log('Logo from object converted to base64 data URL');
         } else {
           throw new Error('Logo must be a base64 string, file path, or object with base64 property. Received type: ' + typeof logo);
         }
@@ -70,10 +55,9 @@ async function generateWordDocument(data) {
     }
 
     // Header paragraph logic
-    let headerParagraph = createHeaderWithLogo(logoImageBuffer);
+    let headerParagraph = await createHeaderWithLogo(logoImageBuffer);
+    // Remove console.log com acesso à propriedade rootKey
     
-    console.log('Header paragraph created with', headerParagraph.root.rootKey, 'type');
-
     // Create document with styled template
     const doc = new Document({
       styles: {

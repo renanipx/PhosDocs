@@ -66,8 +66,8 @@ router.post('/generate', async (req, res) => {
 
     // Handle logo from request (if present)
     let logo = null;
-    if (req.body.logoBase64) {
-      logo = req.body.logoBase64;
+    if (req.body.logo.base64 ) {
+      logo = req.body.logo.base64 ;
     } else if (req.body.logo) {
       logo = req.body.logo;
     }

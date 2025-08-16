@@ -74,8 +74,19 @@ async function generateDocumentation(data) {
 
     console.log('🔄 Starting individual section processing...');
 
-    // Use the new section processor instead of single prompt
-    const generatedText = await processAllSections(data);
+    // Extrair o tipo da seção da descrição
+    const sections = description.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    let sectionType = 'funcionalidade'; // Tipo padrão
+    const sectionMatch = sections[0]?.match(/^\[(funcionalidade|bug|performance|segurança|recurso)\]/i);
+    if (sectionMatch) {
+      sectionType = sectionMatch[1].toLowerCase();
+    }
+
+    // Use the new section processor with sectionType
+    const generatedText = await processAllSections(data, sectionType);
 
     // Format the response
     const documentation = {
@@ -162,4 +173,4 @@ module.exports = {
   generateDocumentation,
   generateImageCaption,
   validateInput
-}; 
+};

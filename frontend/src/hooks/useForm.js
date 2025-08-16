@@ -63,6 +63,7 @@ const useForm = (initialState, validateForm) => {
     if (file) {
       // Revoke previous URL if exists
       if (form.logoPreview) {
+        console.log(form.logoPreview);
         URL.revokeObjectURL(form.logoPreview);
       }
       

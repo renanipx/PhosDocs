@@ -24,18 +24,3 @@ export const validateDocumentForm = (form) => {
 
   return errors;
 };
-
-// Helper function to clean up blob URLs
-export const cleanupBlobUrls = (urls) => {
-  if (!urls) return;
-  
-  if (Array.isArray(urls)) {
-    urls.forEach(url => {
-      if (url && typeof url === 'string' && url.startsWith('blob:')) {
-        window.URL.revokeObjectURL(url);
-      }
-    });
-  } else if (typeof urls === 'string' && urls.startsWith('blob:')) {
-    window.URL.revokeObjectURL(urls);
-  }
-};

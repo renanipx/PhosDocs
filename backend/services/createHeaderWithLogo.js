@@ -1,5 +1,6 @@
 const { Paragraph, TextRun, ImageRun, AlignmentType } = require("docx");
 const sizeOf = require('image-size').default || require('image-size');
+const sharp = require('sharp');
 
 /**
  * Gera um Paragraph para o header do DOCX com logo.
@@ -8,11 +9,11 @@ const sizeOf = require('image-size').default || require('image-size');
  * @param {number} maxHeight - Altura máxima da imagem no header (pixels).
  * @returns {Paragraph} - Paragraph pronto para o header do DOCX.
  */
-function createHeaderWithLogo(logo, targetWidth = 120, maxHeight = 100) {
-    let logoBuffer = null;
+async function createHeaderWithLogo(logo, targetWidth = 120, maxHeight = 100) {
+    const FORMATOS_SUPORTADOS = ['png', 'jpeg', 'jpg', 'gif', 'webp'];
+    const DIMENSOES_MAXIMAS = { width: 2000, height: 2000 };
 
     if (!logo) {
-        // Sem logo, retorna parágrafo vazio
         return new Paragraph({
             children: [new TextRun({ text: "" })],
             alignment: AlignmentType.CENTER,
@@ -21,67 +22,61 @@ function createHeaderWithLogo(logo, targetWidth = 120, maxHeight = 100) {
     }
 
     try {
-        // Se for base64
+        let logoBuffer, formato;
+
+        // Processamento de Base64
         if (typeof logo === "string" && logo.startsWith("data:image")) {
-            // Verifica se é um tipo de imagem válido
-            const mimeMatch = logo.match(/^data:(image\/(png|jpeg|jpg));base64,/);
-            if (!mimeMatch) throw new Error("Tipo de imagem inválido. Use PNG ou JPEG");
+            const mimeMatch = logo.match(/^data:image\/(png|jpeg|jpg|gif|webp);base64,/);
+            if (!mimeMatch || !FORMATOS_SUPORTADOS.includes(mimeMatch[1])) {
+                throw new Error(`Formato não suportado. Use: ${FORMATOS_SUPORTADOS.join(', ')}`);
+            }
 
             const base64Data = logo.split(",")[1];
-            if (!base64Data || base64Data.length < 100) throw new Error("Base64 vazio ou muito curto");
-            
-            logoBuffer = Buffer.from(base64Data, "base64");
-            if (logoBuffer.length < 100) throw new Error("Buffer de imagem muito pequeno");
-        } else if (Buffer.isBuffer(logo)) {
-            if (logo.length < 100) throw new Error("Buffer de imagem muito pequeno");
-            logoBuffer = logo;
+            if (!base64Data || base64Data.length < 100) throw new Error("Base64 inválido");
+            // Validação extra: garantir que o buffer não está vazio
+            const tempBuffer = Buffer.from(base64Data, "base64");
+            if (!tempBuffer || tempBuffer.length < 100) throw new Error("Buffer da imagem inválido ou vazio");
+            logoBuffer = await sharp(tempBuffer).png().toBuffer();
+            if (!logoBuffer || logoBuffer.length < 100) throw new Error("Buffer PNG gerado está vazio ou inválido");
+            formato = 'png';
+        }
+        // Processamento de Buffer/Arquivo
+        else if (Buffer.isBuffer(logo)) {
+            // Sempre converte para PNG para garantir compatibilidade
+            logoBuffer = await sharp(logo).png().toBuffer();
+            formato = 'png';
         } else {
-            throw new Error("Formato de logo inválido");
+            throw new Error("Tipo de entrada inválido");
         }
 
-        // Testa dimensões da imagem
+        // Validação dimensional
         const dimensions = sizeOf(logoBuffer);
-        if (!dimensions || !dimensions.width || !dimensions.height) {
-            throw new Error("Não foi possível determinar as dimensões da imagem");
+        if (!dimensions || dimensions.width > DIMENSOES_MAXIMAS.width || dimensions.height > DIMENSOES_MAXIMAS.height) {
+            throw new Error(`Dimensões excedem o máximo permitido (${DIMENSOES_MAXIMAS.width}x${DIMENSOES_MAXIMAS.height}px)`);
         }
 
-        // Garante dimensões mínimas
-        if (dimensions.width < 10 || dimensions.height < 10) {
-            throw new Error("Imagem muito pequena");
+        // Cálculo proporcional
+        let height = Math.round(dimensions.height * (targetWidth / dimensions.width));
+        if (height > maxHeight) {
+            const scale = maxHeight / height;
+            height = Math.round(height * scale);
+            targetWidth = Math.round(targetWidth * scale);
         }
-
-        // Ajusta dimensões para twips (1 twip = 1/20 de ponto = 1/1440 de polegada)
-        const twipsPerPixel = 15; // Aproximadamente 15 twips por pixel
-        let targetWidthTwips = targetWidth * twipsPerPixel;
-        let heightTwips = Math.round(dimensions.height * (targetWidthTwips / dimensions.width));
-
-        // Ajusta altura máxima
-        const maxHeightTwips = maxHeight * twipsPerPixel;
-        if (heightTwips > maxHeightTwips) {
-            const scale = maxHeightTwips / heightTwips;
-            heightTwips = Math.round(heightTwips * scale);
-            targetWidthTwips = Math.round(targetWidthTwips * scale);
-        }
-
-        // Garantir valores válidos
-        if (targetWidthTwips <= 0 || heightTwips <= 0) throw new Error("Dimensões inválidas");
 
         return new Paragraph({
             children: [
-                new TextRun({ text: " " }), // Evita problema de compatibilidade
+                new TextRun({ text: " " }),
                 new ImageRun({
                     data: logoBuffer,
-                    transformation: {
-                        width: targetWidthTwips,
-                        height: heightTwips
-                    },
+                    transformation: { width: targetWidth, height },
+                    format: formato
                 }),
             ],
             alignment: AlignmentType.CENTER,
             spacing: { after: 200 },
         });
     } catch (err) {
-        console.warn("Falha ao processar logo, ignorando:", err.message);
+        console.error("Erro no processamento do logo:", err.message);
         return new Paragraph({
             children: [new TextRun({ text: "" })],
             alignment: AlignmentType.CENTER,

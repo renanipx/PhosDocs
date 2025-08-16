@@ -109,58 +109,84 @@ async function processSection(sectionType, content, title) {
 /**
  * Process all sections individually and concatenate
  * @param {Object} data - The documentation data
+ * @param {string} sectionType - Type of section
  * @returns {Promise<string>} Concatenated sections
  */
-async function processAllSections(data) {
-  try {
-    const { title, description, images } = data;
-    
-    // Split content into sections if it's already formatted
-    const sections = extractSectionsFromContent(description);
-    
-    const results = [];
-    
-    // Process each section individually
-    for (const section of sections) {
-      if (section.type && section.content) {
-        const processedSection = await processSection(section.type, section.content, title);
-        const lines = processedSection
-          .split('\n')
-          .map((l) => l.trim())
-          .filter((l) => l.length > 0);
 
-        for (const line of lines) {
-          const cleanedLine = line.replace(/^\s*\[[^\]]+\]\s*/i, '').trim();
-          results.push(`[${section.type}] ${cleanedLine}`);
-        }
-      }
+// async function processAllSections(data) {
+async function processAllSections(data, sectionType) {
+  // COMENTAR E DESCOMENTAR
+  const mockResponses = {
+    funcionalidade: `[funcionalidade] Nova funcionalidade implementada\nDetalhes: Adição de novos recursos para melhorar a experiência do usuário.`,
+    bug: `[bug] Correção do bug em \nSolução implementada: Ajustes realizados no código para resolver o problema.`,
+    performance: `[performance] Otimização de performance em \nMelhorias implementadas: Otimizações realizadas para melhorar o desempenho.`,
+    segurança: `[segurança] Reforço de segurança em\nMedidas implementadas: Implementação de controles de segurança adicionais.`,
+    recurso: `[recurso] Novo recurso em \nBenefícios: Melhorias na experiência do usuário e funcionalidades adicionais.`
+  };
+
+  // Se não houver sectionType, tenta extrair das seções
+  if (!sectionType) {
+    const sections = extractSectionsFromContent(data.description || '');
+    if (sections.length > 0) {
+      sectionType = sections[0].type;
+    } else {
+      sectionType = 'funcionalidade'; // Tipo padrão
     }
-    
-    // If no sections were found, process the entire content as a single section
-    if (results.length === 0) {
-      console.log('Nenhuma seção encontrada, processando conteúdo completo...');
-      const processedContent = await processSection('funcionalidade', description, title);
-      const lines = processedContent
-        .split('\n')
-        .map((l) => l.trim())
-        .filter((l) => l.length > 0);
-      for (const line of lines) {
-        const cleanedLine = line.replace(/^\s*\[[^\]]+\]\s*/i, '').trim();
-        results.push(`[funcionalidade] ${cleanedLine}`);
-      }
-    }
-    
-    // Concatenate all sections
-    const finalContent = results.join('\n');
-    
-    console.log(`Processamento concluído. ${results.length} seções geradas.`);
-    return finalContent;
-    
-  } catch (error) {
-    console.error('Erro no processamento de seções:', error);
-    throw new Error(`Falha no processamento de seções: ${error.message}`);
   }
+
+  return mockResponses[sectionType] || `[${sectionType}] ${data.description || ''}`;
 }
+
+  
+  // try {
+  //   const { title, description, images } = data;
+    
+  //   // Split content into sections if it's already formatted
+  //   const sections = extractSectionsFromContent(description);
+    
+  //   const results = [];
+    
+  //   // Process each section individually
+  //   for (const section of sections) {
+  //     if (section.type && section.content) {
+  //       const processedSection = await processSection(section.type, section.content, title);
+  //       const lines = processedSection
+  //         .split('\n')
+  //         .map((l) => l.trim())
+  //         .filter((l) => l.length > 0);
+
+  //       for (const line of lines) {
+  //         const cleanedLine = line.replace(/^\s*\[[^\]]+\]\s*/i, '').trim();
+  //         results.push(`[${section.type}] ${cleanedLine}`);
+  //       }
+  //     }
+  //   }
+    
+  //   // If no sections were found, process the entire content as a single section
+  //   if (results.length === 0) {
+  //     console.log('Nenhuma seção encontrada, processando conteúdo completo...');
+  //     const processedContent = await processSection('funcionalidade', description, title);
+  //     const lines = processedContent
+  //       .split('\n')
+  //       .map((l) => l.trim())
+  //       .filter((l) => l.length > 0);
+  //     for (const line of lines) {
+  //       const cleanedLine = line.replace(/^\s*\[[^\]]+\]\s*/i, '').trim();
+  //       results.push(`[funcionalidade] ${cleanedLine}`);
+  //     }
+  //   }
+    
+  //   // Concatenate all sections
+  //   const finalContent = results.join('\n');
+    
+  //   console.log(`Processamento concluído. ${results.length} seções geradas.`);
+  //   return finalContent;
+    
+  // } catch (error) {
+  //   console.error('Erro no processamento de seções:', error);
+  //   throw new Error(`Falha no processamento de seções: ${error.message}`);
+  // }
+// }
 
 /**
  * Extract sections from pre-formatted content

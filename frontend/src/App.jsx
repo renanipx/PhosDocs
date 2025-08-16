@@ -5,7 +5,7 @@ import Notification from './components/UI/Notification';
 import Loading from './components/UI/Loading';
 import useForm from './hooks/useForm';
 import useNotification from './hooks/useNotification';
-import { validateDocumentForm, cleanupBlobUrls } from './utils/helpers';
+import { validateDocumentForm } from './utils/helpers';
 import { uploadImages, generateDocumentation } from './services/api';
 import './styles/index.css';
 import './styles/components.css';
@@ -32,36 +32,40 @@ function App() {
   
   // Use custom hooks
   const { notification, showNotification } = useNotification();
-  const { form, errors, handleChange, handleImageChange, handleLogoChange, handleRemoveImage, handleRemoveLogo, validate, setErrors } = 
+  const { form, errors, handleChange, handleImageChange, handleLogoChange, handleRemoveImage, handleRemoveLogo, validate, setErrors, setForm } = 
     useForm(initialFormState, validateDocumentForm);
 
-  // Cleanup blob URL when component unmounts
   useEffect(() => {
     return () => {
       if (previewUrl) {
         window.URL.revokeObjectURL(previewUrl);
       }
-      cleanupBlobUrls(form.imagePreviews);
-      cleanupBlobUrls(form.logoPreview);
     };
   }, [previewUrl, form.imagePreviews, form.logoPreview]);
 
   // Função para voltar ao formulário preservando a logo
   const handleBackToForm = () => {
     setStep('form');
-    // Preservar a logo e outros dados do formulário
-    // mas limpar o documento gerado
     setDoc(null);
-    // Limpar URL do documento
-    if (previewUrl) {
-      window.URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-    // Restaurar logoPreview se existir
-    if (!form.logoPreview && form.logo) {
-      form.logoPreview = URL.createObjectURL(form.logo);
-    }
+    // Preserva logo e logoPreview ao voltar para o formulário
+    setForm(form => ({
+      ...form,
+      logo: form.logo,
+      logoPreview: form.logoPreview
+    }));
   };
+
+  
+
+  useEffect(() => {
+    return () => {
+      // Revoga apenas a preview do documento
+      if (previewUrl) {
+        window.URL.revokeObjectURL(previewUrl);
+      }
+      // Mantém as URLs das imagens e logo ativas
+    };
+  }, [previewUrl]);
 
   // Handle form submission
   const handleSubmit = async (e) => {
